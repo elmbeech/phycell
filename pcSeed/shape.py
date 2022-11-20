@@ -19,46 +19,12 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 import pandas as pd
+import pdplt  # from pwn biotransistor prj
 import random
 import sys
 
 
 # functions
-def df_label_to_color(df_abc, s_label, s_cmap='viridis', b_shuffle=False):
-    '''
-    input:
-        df_abc: dataframe
-        s_label: column name for which a color column should be generated
-    output:
-        df_abc: updated with color column
-    description:
-      for the selected label column add a color column to the dataframe
-    '''
-    ls_label = sorted(df_abc.loc[:,s_label].unique())
-    if b_shuffle:
-       random.shuffle(ls_label)
-    a_color = plt.get_cmap(s_cmap)(np.linspace(0, 1, len(ls_label)))
-    d_color = dict(zip(ls_label, a_color))
-    df_abc[f'{s_label}_color'] = [colors.to_hex(d_color[s_scene]) for s_scene in df_abc.loc[:,s_label]]
-
-def ax_colorlegend(ax, df_abc, s_label, s_color, r_x_figure2legend_space=0.01, s_fontsize='small'):
-    '''
-    description:
-      add color legend to figure
-    '''
-    d_color = df_abc.loc[:,[s_label,s_color]].drop_duplicates().set_index(s_label).loc[:,s_color].to_dict()
-    lo_patch = []
-    for s_label, s_color in sorted(d_color.items()):
-        o_patch = mpatches.Patch(color=s_color, label=s_label)
-        lo_patch.append(o_patch)
-    ax.legend(
-        handles = lo_patch, 
-        bbox_to_anchor = (1+r_x_figure2legend_space, 0, 0, 0), 
-        loc = 'lower left', 
-        borderaxespad = 0.00, 
-        fontsize = s_fontsize
-    )
-
 def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
     """
     plot z stack from shape df
@@ -130,7 +96,7 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
                 title = f'{s_title}: {i_z}',
                 ax = ax,
             )
-            ax_colorlegend(
+            pdplt.ax_colorlegend(
                 ax = ax, 
                 df_abc = df_z, 
                 s_label = 'type', 
@@ -349,7 +315,7 @@ class Shape:
         """
         df_coor = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
         df_coor['type'] = 'mesh'
-        df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
+        pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
         z_stack(
             df_coor = df_coor,
             show = show,
@@ -369,7 +335,7 @@ class Shape:
         # plot agents
         df_coor = self.df_agent().copy()
         df_coor.z = df_coor.z.round().astype(int)
-        df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
+        pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
         z_stack(
             df_coor = df_coor,
             show = show,
