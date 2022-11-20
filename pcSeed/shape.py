@@ -70,7 +70,7 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
     i_max_axis = max({df_coor['x'].max() + 1, df_coor['y'].max() + 1})
     li_z = sorted(df_coor['z'].unique(), reverse=True)
 
-    # show and plot mesh or agenst
+    # show and plot mesh or agents
     if show or not (plot is None):
         # generate plot
         i_z_total = len(li_z)
@@ -105,7 +105,7 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
             # show plot
             fig.show()
 
-    # mesh or agnets to png
+    # mesh or agents to png
     if not (png is None):
         # handle path and filename
         ls_pathfile = png.split('/')
@@ -272,7 +272,7 @@ class Shape:
             shape.density: float
 
         description:
-            set agent seeding density (agens / volume)
+            set agent seeding density (agents / volume)
             for that mesh explicit.
         """
         self.density = density
@@ -447,7 +447,7 @@ class Sphere(Shape):
         # handle origin input
         ti_origin = (int(round(origin[0])), int(round(origin[1])), int(round(origin[2])))
 
-        # check with simple pythagoras, if coordinat is inside the sphere
+        # carve with simple pythagoras sphere out of the bick.
         df_coor['r2'] = i_r**2
         df_coor['m2'] = (df_coor.loc[:,'m'] - ti_origin[0])**2
         df_coor['n2'] = (df_coor.loc[:,'n'] - ti_origin[1])**2
