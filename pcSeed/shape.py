@@ -10,7 +10,8 @@
 #     foo figther the color and the shape.
 #########
 
-# library
+
+# libraries
 import itertools
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -22,7 +23,7 @@ import random
 import sys
 
 
-# function
+# functions
 def df_label_to_color(df_abc, s_label, s_cmap='viridis', b_shuffle=False):
     '''
     input:
@@ -40,7 +41,6 @@ def df_label_to_color(df_abc, s_label, s_cmap='viridis', b_shuffle=False):
     d_color = dict(zip(ls_label, a_color))
     df_abc[f'{s_label}_color'] = [colors.to_hex(d_color[s_scene]) for s_scene in df_abc.loc[:,s_label]]
 
-
 def ax_colorlegend(ax, df_abc, s_label, s_color, r_x_figure2legend_space=0.01, s_fontsize='small'):
     '''
     description:
@@ -51,10 +51,15 @@ def ax_colorlegend(ax, df_abc, s_label, s_color, r_x_figure2legend_space=0.01, s
     for s_label, s_color in sorted(d_color.items()):
         o_patch = mpatches.Patch(color=s_color, label=s_label)
         lo_patch.append(o_patch)
-    ax.legend(handles=lo_patch, bbox_to_anchor=(1+r_x_figure2legend_space, 0, 0, 0), loc='lower left', borderaxespad=0.00, fontsize=s_fontsize)
+    ax.legend(
+        handles = lo_patch, 
+        bbox_to_anchor = (1+r_x_figure2legend_space, 0, 0, 0), 
+        loc = 'lower left', 
+        borderaxespad = 0.00, 
+        fontsize = s_fontsize
+    )
 
-
-def z_stack(df_coor, show=True, png=None, movie=False, frame_rate=24):
+def z_stack(df_coor, show=True, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
     """
     plot z stack from shape df
     png None or name
@@ -65,8 +70,9 @@ def z_stack(df_coor, show=True, png=None, movie=False, frame_rate=24):
     i_max_axis = max({df_coor['x'].max() + 1, df_coor['y'].max() + 1})
     li_z = sorted(df_coor['z'].unique(), reverse=True)
 
-    # plot mesh
-    if show:
+    # show and plot mesh or agenst
+    if show or not (plot is None):
+        # generate plot
         i_z_total = len(li_z)
         fig, ax = plt.subplots(
             nrows=i_z_total, ncols=1, sharex=True, figsize=(4, 4*i_z_total)
@@ -85,16 +91,30 @@ def z_stack(df_coor, show=True, png=None, movie=False, frame_rate=24):
                 title = f'z_stack: {i_z}',
                 ax = ax[i]
             )
-        fig.show()
+        if show:
+            # show plot
+            fig.show()
+        if not (plot is None):
+            # handle path and filename
+            ls_pathfile = png.split('/')
+            s_file = ls_pathfile.pop(-1)
+            s_path = '/'.join(ls_pathfile)
+            if (len(s_path) > 0):
+               s_path = s_path + '/'
+            os.makedirs(s_path, exist_ok=True)
+            # save plot
+            fig.savefig(f'{s_path}{s_file}', facecolor=facecolor)
 
-    # mesh to png
+    # mesh or agnets to png
     if not (png is None):
+        # handle path and filename
         ls_pathfile = png.split('/')
         s_shape = ls_pathfile.pop(-1).replace('.png','')
         s_path = '/'.join(ls_pathfile)
         if (len(s_path) > 0):
            s_path = s_path + '/'
         os.makedirs(s_path, exist_ok=True)
+        # generate png
         for i , i_z in enumerate(li_z):
             s_title = f'{s_shape}_z_layer'
             fig, ax = plt.subplots(figsize=(4, 4))
@@ -110,19 +130,28 @@ def z_stack(df_coor, show=True, png=None, movie=False, frame_rate=24):
                 title = f'{s_title}: {i_z}',
                 ax = ax,
             )
-            ax_colorlegend(ax=ax, df_abc=df_z, s_label='type', s_color='type_color', r_x_figure2legend_space=-0.99, s_fontsize='small')
+            ax_colorlegend(
+                ax = ax, 
+                df_abc = df_z, 
+                s_label = 'type', 
+                s_color = 'type_color', 
+                r_x_figure2legend_space = -0.99, 
+                s_fontsize = 'small'
+            )
+            # save png
             plt.tight_layout()
-            fig.savefig(f'{s_path}{s_title}_{str(i).zfill(6)}.png', facecolor='white')
+            fig.savefig(f'{s_path}{s_title}_{str(i).zfill(6)}.png', facecolor=facecolor)
             plt.close()
 
-    # mesh to movie
+    # mesh or agents to movie
     if movie and not (png is None):
         s_pathfile_movie = f'{s_path}{s_title}.mp4'
         os.system(f'ffmpeg -r {frame_rate} -f image2 -i {s_path}{s_title}_%06d.png -vcodec libx264 -pix_fmt yuv420p -strict -2 -tune animation -crf 15 -acodec none {s_pathfile_movie}')
 
 
-
-# class definion
+##################
+# class definion #
+##################
 class Shape:
     """
     generic class
@@ -143,11 +172,85 @@ class Shape:
         """
         return(self.coor.shape[0])
 
+    def union(self, shape):
+        """
+        # coor and agents
+        """
+        df_union_coor = pd.merge(
+            self.coor,
+            shape.coor,
+            on=['m','n','p'],
+            how='outer',
+        )
+        df_union_agent = pd.merge(
+            self.agent,
+            shape.agent,
+            on=['m','n','p'],
+            how='outer',
+        )
+        # output
+        o_union = Shape()
+        o_union.coor = df_union_coor
+        o_union.agent = df_union_agent
+        return(o_union)
+
+    def intersection(self, shape):
+        """
+        # coor and agents
+        """
+        df_intersect = pd.merge(
+            self.coor,
+            shape.coor,
+            on=['m','n','p'],
+            how='inner',
+        )
+        # output
+        o_intersection = Shape()
+        o_intersection.coor = df_intersect
+        return(o_intersection)
+
+    def difference(self, shape):
+        """
+        # coor and agents
+        """
+        df_diff = self.coor.copy()
+        df_diff['coor'] = df_diff.loc[:,'m'].astype(str) + '_' + df_diff.loc[:,'n'].astype(str) + '_' + df_diff.loc[:,'p'].astype(str)
+        es_shape = set(shape.coor.loc[:,'m'].astype(str) + '_' + shape.coor.loc[:,'n'].astype(str) + '_' + shape.coor.loc[:,'p'].astype(str))
+        df_diff['intersection'] = df_diff['coor'].isin(es_shape)
+        df_diff = df_diff.loc[~ df_diff.loc[:,'intersection'],['m','n','p']]
+        # output
+        o_diff = Shape()
+        o_diff.coor = df_diff
+        return(o_diff)
+
+    def symetric_difference(self, shape):
+        """
+        # coor and agents
+`       """
+        # left
+        df_diff_left = self.difference(shape).coor
+        # right
+        df_diff_right = shape.coor.copy()
+        df_diff_right['coor'] = df_diff_right.loc[:,'m'].astype(str) + '_' + df_diff_right.loc[:,'n'].astype(str) + '_' + df_diff_right.loc[:,'p'].astype(str)
+        es_self = set(self.coor.loc[:,'m'].astype(str) + '_' + self.coor.loc[:,'n'].astype(str) + '_' + self.coor.loc[:,'p'].astype(str))
+        df_diff_right['intersection'] = df_diff_right['coor'].isin(es_self)
+        df_diff_right = df_diff_right.loc[~ df_diff_right.loc[:,'intersection'],['m','n','p']]
+        # fusion
+        df_diff_sym = pd.merge(
+            df_diff_left,
+            df_diff_right,
+            on=['m','n','p'],
+            how='outer'
+        )
+        # output
+        o_diff_sym = Shape()
+        o_diff_sym.coor = df_diff_sym
+        return(o_diff_sym)
 
     def set_seeding_density_by_agent_count(self, total):
         """
         input:
-            count: integer
+            total: integer
                 number of agents that about should be seeded.
 
         output:
@@ -155,10 +258,9 @@ class Shape:
 
         description:
             set agent seeding density (agent / volume)
-            for that mesh over agent count.
+            for that mesh over the number of agents.
         """
         self.density = total / self.volume()
-
 
     def set_seeding_density(self, density):
         """
@@ -173,8 +275,6 @@ class Shape:
             set agent seeding density (agens / volume)
             for that mesh explicit.
         """
-        self.density = density
-
 
     def agent_seeding(self, agent_type_fraction):
         """
@@ -187,10 +287,11 @@ class Shape:
         description:
 
         """
-        # check for agent seeding density
+        # check if agent seeding density is set
         if (self.density is None):
             sys.exit(f'Error @ Shape agent_seeding: no agent seeding density set.\nplese provide density eiter by shape.set_seeding_density or shape.set_seeding_density_by_agent_count function!')
-        # check if type fractions summ up to 1
+
+        # check if type fractions sum up to 1
         if (sum(agent_type_fraction.values()) != 1):
             sys.exit(f'Error @ Shape agent_seeding: the agent type fractions do not sum up to 1 {sorted(agent_type_fraction.items())} = {sum(agent_type_fraction.values())}.')
 
@@ -226,89 +327,35 @@ class Shape:
         # reset agent_density to None
         self.agent_density = None
 
-        # output
+        # stor result
         self.agent = df_agent
-
-
-    def union(self, shape):
-        """
-        # coor and agents
-        """
-        df_union = pd.merge(
-            self.coor,
-            shape.coor,
-            on=['m','n','p'],
-            how='outer',
-        )
-        o_union = Shape()
-        o_union.coor = df_union
-        return(o_union)
-
-
-    def intersection(self, shape):
-        """
-        # coor and agents
-        """
-        df_intersect = pd.merge(
-            self.coor,
-            shape.coor,
-            on=['m','n','p'],
-            how='inner',
-        )
-        o_intersection = Shape()
-        o_intersection.coor = df_intersect
-        return(o_intersection)
-
-
-    def difference(self, shape):
-        """
-        # coor and agents
-        """
-        df_diff = self.coor.copy()
-        df_diff['coor'] = df_diff.loc[:,'m'].astype(str) + '_' + df_diff.loc[:,'n'].astype(str) + '_' + df_diff.loc[:,'p'].astype(str)
-        es_shape = set(shape.coor.loc[:,'m'].astype(str) + '_' + shape.coor.loc[:,'n'].astype(str) + '_' + shape.coor.loc[:,'p'].astype(str))
-        df_diff['intersection'] = df_diff['coor'].isin(es_shape)
-        df_diff = df_diff.loc[~ df_diff.loc[:,'intersection'],['m','n','p']]
-        o_diff = Shape()
-        o_diff.coor = df_diff
-        return(o_diff)
-
-
-    def symetric_difference(self, shape):
-        """
-        # coor and agents
-`       """
-        # left
-        df_diff_left = self.difference(shape).coor
-        # right
-        df_diff_right = shape.coor.copy()
-        df_diff_right['coor'] = df_diff_right.loc[:,'m'].astype(str) + '_' + df_diff_right.loc[:,'n'].astype(str) + '_' + df_diff_right.loc[:,'p'].astype(str)
-        es_self = set(self.coor.loc[:,'m'].astype(str) + '_' + self.coor.loc[:,'n'].astype(str) + '_' + self.coor.loc[:,'p'].astype(str))
-        df_diff_right['intersection'] = df_diff_right['coor'].isin(es_self)
-        df_diff_right = df_diff_right.loc[~ df_diff_right.loc[:,'intersection'],['m','n','p']]
-        # fusion
-        df_diff_sym = pd.merge(
-            df_diff_left,
-            df_diff_right,
-            on=['m','n','p'],
-            how='outer'
-        )
-        o_diff_sym = Shape()
-        o_diff_sym.coor = df_diff_sym
-        return(o_diff_sym)
-
-
-    def df_agent(self):
-        """
-        """
-        return(self.agent)
-
 
     def df_mesh(self):
         """
         """
         return(self.coor)
 
+    def df_agent(self):
+        """
+        """
+        return(self.agent)
+
+    def z_stack_mesh(self, show=True, png=None, movie=False, frame_rate=24):
+        """
+        plot z stack from shape df
+        png None or name
+        movie None or name (png)
+        """
+        df_coor = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
+        df_coor['type'] = 'mesh'
+        df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
+        z_stack(
+            df_coor = df_coor,
+            show = show,
+            png = png,
+            movie  = movie,
+            frame_rate = frame_rate,
+        )
 
     def z_stack_agent(self, show=True, png=None, movie=False, frame_rate=24):
         """
@@ -319,24 +366,6 @@ class Shape:
         # plot agents
         df_coor = self.df_agent().copy()
         df_coor.z = df_coor.z.round().astype(int)
-        df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
-        z_stack(
-            df_coor = df_coor,
-            show = show,
-            png = png,
-            movie  = movie,
-            frame_rate = frame_rate,
-        )
-
-
-    def z_stack_mesh(self, show=True, png=None, movie=False, frame_rate=24):
-        """
-        plot z stack from shape df
-        png None or name
-        movie None or name (png)
-        """
-        df_coor = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
-        df_coor['type'] = 'mesh'
         df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
         z_stack(
             df_coor = df_coor,
