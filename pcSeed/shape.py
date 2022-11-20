@@ -59,7 +59,7 @@ def ax_colorlegend(ax, df_abc, s_label, s_color, r_x_figure2legend_space=0.01, s
         fontsize = s_fontsize
     )
 
-def z_stack(df_coor, show=True, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
+def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
     """
     plot z stack from shape df
     png None or name
@@ -91,9 +91,6 @@ def z_stack(df_coor, show=True, plot=None, png=None, movie=False, facecolor='whi
                 title = f'z_stack: {i_z}',
                 ax = ax[i]
             )
-        if show:
-            # show plot
-            fig.show()
         if not (plot is None):
             # handle path and filename
             ls_pathfile = png.split('/')
@@ -104,6 +101,9 @@ def z_stack(df_coor, show=True, plot=None, png=None, movie=False, facecolor='whi
             os.makedirs(s_path, exist_ok=True)
             # save plot
             fig.savefig(f'{s_path}{s_file}', facecolor=facecolor)
+        if show:
+            # show plot
+            fig.show()
 
     # mesh or agnets to png
     if not (png is None):
@@ -185,7 +185,7 @@ class Shape:
         df_union_agent = pd.merge(
             self.agent,
             shape.agent,
-            on=['m','n','p'],
+            on=['x','y','z','type'],
             how='outer',
         )
         # output
@@ -275,6 +275,7 @@ class Shape:
             set agent seeding density (agens / volume)
             for that mesh explicit.
         """
+        self.density = density
 
     def agent_seeding(self, agent_type_fraction):
         """
@@ -340,7 +341,7 @@ class Shape:
         """
         return(self.agent)
 
-    def z_stack_mesh(self, show=True, png=None, movie=False, frame_rate=24):
+    def z_stack_mesh(self, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
         """
         plot z stack from shape df
         png None or name
@@ -352,12 +353,14 @@ class Shape:
         z_stack(
             df_coor = df_coor,
             show = show,
+            plot = plot,
             png = png,
             movie  = movie,
+            facecolor = facecolor,
             frame_rate = frame_rate,
         )
 
-    def z_stack_agent(self, show=True, png=None, movie=False, frame_rate=24):
+    def z_stack_agent(self, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
         """
         plot z stack from agent df
         png None or name
@@ -370,8 +373,10 @@ class Shape:
         z_stack(
             df_coor = df_coor,
             show = show,
+            plot = plot,
             png = png,
             movie  = movie,
+            facecolor = facecolor,
             frame_rate = frame_rate,
         )
 
