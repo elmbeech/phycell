@@ -19,12 +19,25 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 import pandas as pd
-import pdplt  # from pwn biotransistor prj
+from pcSeed import pdplt  # from pwn biotransistor prj
 import random
 import sys
 
 
 # functions
+def axis(r_zero, r_min, r_max, r_step):
+    """
+    """
+    er_neg = set()
+    if (r_min < r_zero):
+        er_neg = set(np.arange(r_zero, r_min - 0.001, - r_step))
+    er_pos = set()
+    if (r_max > r_zero):
+        er_pos = set(np.arange(r_zero, r_max + 0.001, + r_step))
+    # output
+    er_axis = er_neg.union(er_pos)
+    return(er_axis)
+
 def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
     """
     plot z stack from shape df
@@ -123,25 +136,34 @@ class Shape:
     generic class
     """
     def __init__(self):
-        self.density = None
         self.agent = None # x,y,z,type dataframe
         self.coor = None  # one pixel is equal to one um!
+        self.nm_p_px = 1
 
     def volume(self):
         """
         output:
-           volume: integer
+           volume: integer in nm**2 or nm**3
 
         description:
             function returns volume in pixels.
             a pixel is thought to have 1 micrometer side length.
         """
-        return(self.coor.shape[0])
+        #return(self.coor.shape[0])
+        i_volumne = self.coor.shape[0]
+        i_p = len(set(self.coor.p))
+        if (i_p == 1):
+            i_volumne = i_volumne * self.nm_p_px * self.nm_p_px
+        else:
+            i_volumne = i_volumne * self.nm_p_px * self.nm_p_px * self.nm_p_px
+        return(i_volumne)
 
     def union(self, shape):
         """
         # coor and agents
         """
+        if (self.nm_p_px != shape.nm_p_px):
+            sys.exit(f'Error @ Shape.union : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
         df_union_coor = pd.merge(
             self.coor,
             shape.coor,
@@ -164,6 +186,8 @@ class Shape:
         """
         # coor and agents
         """
+        if (self.nm_p_px != shape.nm_p_px):
+            sys.exit(f'Error @ Shape.intersection : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
         df_intersect = pd.merge(
             self.coor,
             shape.coor,
@@ -179,6 +203,8 @@ class Shape:
         """
         # coor and agents
         """
+        if (self.nm_p_px != shape.nm_p_px):
+            sys.exit(f'Error @ Shape.difference : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
         df_diff = self.coor.copy()
         df_diff['coor'] = df_diff.loc[:,'m'].astype(str) + '_' + df_diff.loc[:,'n'].astype(str) + '_' + df_diff.loc[:,'p'].astype(str)
         es_shape = set(shape.coor.loc[:,'m'].astype(str) + '_' + shape.coor.loc[:,'n'].astype(str) + '_' + shape.coor.loc[:,'p'].astype(str))
@@ -192,7 +218,9 @@ class Shape:
     def symetric_difference(self, shape):
         """
         # coor and agents
-`       """
+        """
+        if (self.nm_p_px != shape.nm_p_px):	
+            sys.exit(f'Error @ Shape.symetric_difference : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
         # left
         df_diff_left = self.difference(shape).coor
         # right
@@ -213,67 +241,40 @@ class Shape:
         o_diff_sym.coor = df_diff_sym
         return(o_diff_sym)
 
-    def set_seeding_density_by_agent_count(self, total):
-        """
-        input:
-            total: integer
-                number of agents that about should be seeded.
-
-        output:
-            shape.density: float
-
-        description:
-            set agent seeding density (agent / volume)
-            for that mesh over the number of agents.
-        """
-        self.density = total / self.volume()
-
-    def set_seeding_density(self, density):
-        """
-        input:
-            density: float
-                agent density that should be seeded.
-
-        output:
-            shape.density: float
-
-        description:
-            set agent seeding density (agents / volume)
-            for that mesh explicit.
-        """
-        self.density = density
-
-    def agent_seeding(self, agent_type_fraction):
+    def seeding_random(self, agent_type_fraction, agent_count=None, agent_density=None):
         """
         input:
             agent_type_fraction: dictionary
                 dictionay with agent_type label as key and fraction as value.
                 all fractions iagent_type_fractionn the dictionary should sum up to 1.
                 e.g. {'a': 1} or {'a': 2/3,'b': 1/3} or {'a': 0.75, 'b': 0.25}
+            agent_density in agent/nm**2 or agent/nm**3
 
         description:
 
         """
-        # check if agent seeding density is set
-        if (self.density is None):
-            sys.exit(f'Error @ Shape agent_seeding: no agent seeding density set.\nplese provide density eiter by shape.set_seeding_density or shape.set_seeding_density_by_agent_count function!')
-
         # check if type fractions sum up to 1
         if (sum(agent_type_fraction.values()) != 1):
-            sys.exit(f'Error @ Shape agent_seeding: the agent type fractions do not sum up to 1 {sorted(agent_type_fraction.items())} = {sum(agent_type_fraction.values())}.')
+            sys.exit(f'Error @ Shape seeding_random: the agent type fractions do not sum up to 1 {sorted(agent_type_fraction.items())} = {sum(agent_type_fraction.values())}.')
+
+        # check if agent seeding density is set
+        if ((agent_count is None) and (agent_density is None)) or (not (agent_count is None) and not (agent_density is None)):
+            sys.exit(f'Error @ Shape seeding_random: either agent_density ({agent_density}) or agent_count ({agent_count}) have to be set.\nNone or both are set!')
+        if (agent_density is None):
+            agent_density = agent_count / self.volume() 
 
         # save already seeded agents
         df_agent = None
         if not (self.agent is None):
             df_agent = self.agent.copy()
             # check existig types
-            es_exit = set(df_agent.loc[:,'type'])
+            es_exist = set(df_agent.loc[:,'type'])
             es_seed = set(agent_type_fraction.keys())
-            if (len(es_exit.intesetcion(es_seed)) > 0):
-                sys.exit(f'Error @ Shape agent_seeding: provided agent_type set {sorted(es_seed)} overlaps with already seeded agents {sorted(es_exit)}.\nplease adjust the agent_type_fraction dictionary.')
+            if (len(es_exist.intesetcion(es_seed)) > 0):
+                sys.exit(f'Error @ Shape agent_seeding: provided agent_type set {sorted(es_seed)} overlaps with already seeded agents {sorted(es_exist)}.\nplease adjust the agent_type_fraction dictionary.')
 
         # random seed agents
-        r_total = self.density * self.volume()
+        r_total = agent_density * self.volume()
         for s_type, r_fract in agent_type_fraction.items():
             # seed agents
             i_seed = int(np.ceil(r_fract * r_total)) # better more then less
@@ -291,10 +292,87 @@ class Shape:
             else:
                 df_agent = pd.concat([df_agent, df_seed])
 
-        # reset agent_density to None
-        self.agent_density = None
-
         # stor result
+        self.agent = df_agent
+
+    def seeding_hexagonal(self, agent_type_fraction, agent_diameter):
+        """
+        agent_diameter in nm
+        """
+        # check if type fractions sum up to 1
+        if (sum(agent_type_fraction.values()) != 1):
+            sys.exit(f'Error @ Shape agent_seeding: the agent type fractions do not sum up to 1 {sorted(agent_type_fraction.items())} = {sum(agent_type_fraction.values())}.')
+
+        # save already seeded agents
+        df_agent = None
+        if not (self.agent is None):
+            df_agent = self.agent.copy()
+            # check existig types
+            es_exist = set(df_agent.loc[:,'type'])
+            es_seed = set(agent_type_fraction.keys())
+            if (len(es_exist.intesetcion(es_seed)) > 0):
+                sys.exit(f'Error @ Shape agent_seeding: provided agent_type set {sorted(es_seed)} overlaps with already seeded agents {sorted(es_exist)}.\nplease adjust the agent_type_fraction dictionary.')
+
+        # calculate radius and such
+        r_d_major = agent_diameter / self.nm_p_px  # diameter in pixel
+        r_r_major = r_d_major / 2
+        r_r_major_half = r_d_major / 4
+        r_r_minor = np.sqrt(r_r_major**2 - r_r_major_half**2)
+        r_d_minor = r_r_minor * 2
+        r_r_minor_half = r_r_minor / 2
+
+        # get min and max
+        i_m_min = self.coor.loc[:,'m'].min()
+        i_m_max = self.coor.loc[:,'m'].max()
+        i_n_min = self.coor.loc[:,'n'].min()
+        i_n_max = self.coor.loc[:,'n'].max()
+        i_p_min = self.coor.loc[:,'p'].min()
+        i_p_max = self.coor.loc[:,'p'].max()
+
+        # layer 1a axis n and m
+        lr_axis_l1a_n = sorted(axis(r_zero=0, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
+        lr_axis_l1a_m = sorted(axis(r_zero=0, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+        # layer 1b axis n and m
+        lr_axis_l1b_n = sorted(axis(r_zero=r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
+        lr_axis_l1b_m = sorted(axis(r_zero=r_r_minor, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+        # layer 1 axis p 
+        lr_axis_l1_p = sorted(axis(r_zero=0, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
+        # get layer1 coordinates
+        df_hexcoor_layer1a = pd.DataFrame(itertools.product(lr_axis_l1a_m, lr_axis_l1a_n, lr_axis_l1_p), columns=['m','n','p']) 
+        df_hexcoor_layer1b = pd.DataFrame(itertools.product(lr_axis_l1b_m, lr_axis_l1b_n, lr_axis_l1_p), columns=['m','n','p']) 
+
+        # layer 2a axis n and m
+        lr_axis_l2a_n = sorted(axis(r_zero=r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
+        lr_axis_l2a_m = sorted(axis(r_zero=r_r_minor_half, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+        # layer 2b axis n and m
+        lr_axis_l2b_n = sorted(axis(r_zero=r_r_major_half + r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
+        lr_axis_l2b_m = sorted(axis(r_zero=r_r_minor_half + r_r_minor, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+        # layer 2 axis p 
+        lr_axis_l2_p = sorted(axis(r_zero=r_d_minor, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
+        # get layer2 coordinates
+        df_hexcoor_layer2a = pd.DataFrame(itertools.product(lr_axis_l2a_m, lr_axis_l2a_n, lr_axis_l2_p), columns=['m','n','p']) 
+        df_hexcoor_layer2b = pd.DataFrame(itertools.product(lr_axis_l2b_m, lr_axis_l2b_n, lr_axis_l2_p), columns=['m','n','p']) 
+
+        # agent seeding coordinates
+        df_seed = pd.concat([df_hexcoor_layer1a, df_hexcoor_layer1b, df_hexcoor_layer2a, df_hexcoor_layer2b])
+        df_seed.rename({'m':'x', 'n':'y', 'p':'z'}, axis=1, inplace=True)
+
+        # agent celltypeing
+        i_total = df_seed.shape[0]
+        ls_type = []
+        lr_fract = []
+        for s_type, r_fract in agent_type_fraction.items():
+            ls_type.append(s_type)
+            lr_fract.append(r_fract)  
+        df_seed['type'] = np.random.choice(ls_type, size=i_total, p=lr_fract)
+        
+        # add to results
+        if (df_agent is None):
+            df_agent = df_seed
+        else:
+            df_agent = pd.concat([df_agent, df_seed])
+
+        # save result
         self.agent = df_agent
 
     def df_mesh(self):
@@ -350,7 +428,7 @@ class Shape:
 class Brick(Shape):
     """
     """
-    def __init__(self, x, y, z=1, origin=(0,0,0)):
+    def __init__(self, x, y, z=1, origin=(0,0,0), nm_p_px=1):
         """
         """
         # inhert
@@ -381,16 +459,17 @@ class Brick(Shape):
         iti_m = range(ti_origin[0] - i_rx + 1, ti_origin[0] + i_rx)
         iti_n = range(ti_origin[1] - i_ry + 1, ti_origin[1] + i_ry)
         iti_p = range(ti_origin[2] - i_rz + 1, ti_origin[2] + i_rz)
-        df_coor = pd.DataFrame(itertools.product(iti_m, iti_n, iti_p), columns=['m','n','p'])
+        df_coor = pd.DataFrame(itertools.product(iti_m, iti_n, iti_p), columns=['m','n','p'], dtype=np.int32)
 
         # store result
+        self.nm_p_px = nm_p_px
         self.coor = df_coor
 
 
 class Sphere(Shape):
     """
     """
-    def __init__(self, d, z=1, origin=(0,0,0)):
+    def __init__(self, d, z=1, origin=(0,0,0), nm_p_px=1):
         """
         """
         # inhert
@@ -401,7 +480,7 @@ class Sphere(Shape):
             i_z = d
         else:
             i_z = z
-        o_brick = Brick(x=d, y=d, z=i_z, origin=origin)
+        o_brick = Brick(x=d, y=d, z=i_z, origin=origin, nm_p_px=nm_p_px)
         df_coor = o_brick.coor
 
         # comput r keeping the zero center in mind
