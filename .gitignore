@@ -3,3 +3,4 @@ __pycache__/
 
 # bue 20221119: pcSeed
 *.mp4
+tmp/

@@ -28,17 +28,24 @@ import sys
 def axis(r_zero, r_min, r_max, r_step):
     """
     """
+    #if (r_step < ):
     er_neg = set()
     if (r_min < r_zero):
-        er_neg = set(np.arange(r_zero, r_min - 0.001, - r_step))
+        if (abs(r_min) >= r_step):
+            er_neg = set(np.arange(r_zero, r_min - r_step, - r_step))
+        else:
+            er_neg = set(np.arange(r_zero, r_min, - r_step))
     er_pos = set()
     if (r_max > r_zero):
-        er_pos = set(np.arange(r_zero, r_max + 0.001, + r_step))
+        if (r_max >= r_step):
+            er_pos = set(np.arange(r_zero, r_max + r_step, + r_step))
+        else:
+            er_pos = set(np.arange(r_zero, r_max, + r_step))
     # output
     er_axis = er_neg.union(er_pos)
     return(er_axis)
 
-def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
+def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', s=1, figsize=(4, 4), frame_rate=24):
     """
     plot z stack from shape df
     png None or name
@@ -96,12 +103,13 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
         # generate png
         for i , i_z in enumerate(li_z):
             s_title = f'{s_shape}_z_layer'
-            fig, ax = plt.subplots(figsize=(4, 4))
+            fig, ax = plt.subplots(figsize=figsize)
             df_z = df_coor.loc[df_coor['z']==i_z, :]
             df_z.plot(
                 kind = 'scatter',
                 x = 'x',
                 y = 'y',
+                s = s,
                 color = df_z.loc[:, 'type_color'],
                 xlim = (i_min_axis, i_max_axis),
                 ylim = (i_min_axis, i_max_axis),
@@ -110,11 +118,11 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
                 ax = ax,
             )
             pdplt.ax_colorlegend(
-                ax = ax, 
-                df_abc = df_z, 
-                s_label = 'type', 
-                s_color = 'type_color', 
-                r_x_figure2legend_space = -0.99, 
+                ax = ax,
+                df_abc = df_z,
+                s_label = 'type',
+                s_color = 'type_color',
+                r_x_figure2legend_space = -0.99,
                 s_fontsize = 'small'
             )
             # save png
@@ -138,12 +146,12 @@ class Shape:
     def __init__(self):
         self.agent = None # x,y,z,type dataframe
         self.coor = None  # one pixel is equal to one um!
-        self.nm_p_px = 1
+        self.um_p_px = None # 1 is default
 
     def volume(self):
         """
         output:
-           volume: integer in nm**2 or nm**3
+           volume: integer in um**2 or um**3
 
         description:
             function returns volume in pixels.
@@ -153,17 +161,17 @@ class Shape:
         i_volumne = self.coor.shape[0]
         i_p = len(set(self.coor.p))
         if (i_p == 1):
-            i_volumne = i_volumne * self.nm_p_px * self.nm_p_px
+            i_volumne = i_volumne * self.um_p_px * self.um_p_px
         else:
-            i_volumne = i_volumne * self.nm_p_px * self.nm_p_px * self.nm_p_px
+            i_volumne = i_volumne * self.um_p_px * self.um_p_px * self.um_p_px
         return(i_volumne)
 
     def union(self, shape):
         """
         # coor and agents
         """
-        if (self.nm_p_px != shape.nm_p_px):
-            sys.exit(f'Error @ Shape.union : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
+        if (self.um_p_px != shape.um_p_px):
+            sys.exit(f'Error @ Shape.union : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
         df_union_coor = pd.merge(
             self.coor,
             shape.coor,
@@ -176,18 +184,20 @@ class Shape:
             on=['x','y','z','type'],
             how='outer',
         )
+        df_union_agent = df_union_agent.astype({'x': np.float32, 'y': np.float32, 'z': np.float32, 'type': str})
         # output
         o_union = Shape()
         o_union.coor = df_union_coor
         o_union.agent = df_union_agent
+        o_union.um_p_px = self.um_p_px
         return(o_union)
 
     def intersection(self, shape):
         """
         # coor and agents
         """
-        if (self.nm_p_px != shape.nm_p_px):
-            sys.exit(f'Error @ Shape.intersection : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
+        if (self.um_p_px != shape.um_p_px):
+            sys.exit(f'Error @ Shape.intersection : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
         df_intersect = pd.merge(
             self.coor,
             shape.coor,
@@ -197,14 +207,15 @@ class Shape:
         # output
         o_intersection = Shape()
         o_intersection.coor = df_intersect
+        o_intersection.um_p_px = self.um_p_px
         return(o_intersection)
 
     def difference(self, shape):
         """
         # coor and agents
         """
-        if (self.nm_p_px != shape.nm_p_px):
-            sys.exit(f'Error @ Shape.difference : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
+        if (self.um_p_px != shape.um_p_px):
+            sys.exit(f'Error @ Shape.difference : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
         df_diff = self.coor.copy()
         df_diff['coor'] = df_diff.loc[:,'m'].astype(str) + '_' + df_diff.loc[:,'n'].astype(str) + '_' + df_diff.loc[:,'p'].astype(str)
         es_shape = set(shape.coor.loc[:,'m'].astype(str) + '_' + shape.coor.loc[:,'n'].astype(str) + '_' + shape.coor.loc[:,'p'].astype(str))
@@ -213,14 +224,15 @@ class Shape:
         # output
         o_diff = Shape()
         o_diff.coor = df_diff
+        o_diff.um_p_px = self.um_p_px
         return(o_diff)
 
     def symetric_difference(self, shape):
         """
         # coor and agents
         """
-        if (self.nm_p_px != shape.nm_p_px):	
-            sys.exit(f'Error @ Shape.symetric_difference : the self and shape object are not the same nm per pixel scale ({self.nm_p_px} != {shape.nm_p_px}).\nobjects can not be fused!')
+        if (self.um_p_px != shape.um_p_px):
+            sys.exit(f'Error @ Shape.symetric_difference : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
         # left
         df_diff_left = self.difference(shape).coor
         # right
@@ -239,6 +251,7 @@ class Shape:
         # output
         o_diff_sym = Shape()
         o_diff_sym.coor = df_diff_sym
+        o_diff_sym.um_p_px = self.um_p_px
         return(o_diff_sym)
 
     def seeding_random(self, agent_type_fraction, agent_count=None, agent_density=None):
@@ -248,7 +261,7 @@ class Shape:
                 dictionay with agent_type label as key and fraction as value.
                 all fractions iagent_type_fractionn the dictionary should sum up to 1.
                 e.g. {'a': 1} or {'a': 2/3,'b': 1/3} or {'a': 0.75, 'b': 0.25}
-            agent_density in agent/nm**2 or agent/nm**3
+            agent_density in agent/um**2 or agent/um**3
 
         description:
 
@@ -261,7 +274,7 @@ class Shape:
         if ((agent_count is None) and (agent_density is None)) or (not (agent_count is None) and not (agent_density is None)):
             sys.exit(f'Error @ Shape seeding_random: either agent_density ({agent_density}) or agent_count ({agent_count}) have to be set.\nNone or both are set!')
         if (agent_density is None):
-            agent_density = agent_count / self.volume() 
+            agent_density = agent_count / self.volume()
 
         # save already seeded agents
         df_agent = None
@@ -295,9 +308,9 @@ class Shape:
         # stor result
         self.agent = df_agent
 
-    def seeding_hexagonal(self, agent_type_fraction, agent_diameter):
+    def seeding_hexagonal(self, agent_type_fraction, agent_diameter_um):
         """
-        agent_diameter in nm
+        agent_diameter_um in um
         """
         # check if type fractions sum up to 1
         if (sum(agent_type_fraction.values()) != 1):
@@ -310,11 +323,11 @@ class Shape:
             # check existig types
             es_exist = set(df_agent.loc[:,'type'])
             es_seed = set(agent_type_fraction.keys())
-            if (len(es_exist.intesetcion(es_seed)) > 0):
+            if (len(es_exist.intersection(es_seed)) > 0):
                 sys.exit(f'Error @ Shape agent_seeding: provided agent_type set {sorted(es_seed)} overlaps with already seeded agents {sorted(es_exist)}.\nplease adjust the agent_type_fraction dictionary.')
 
         # calculate radius and such
-        r_d_major = agent_diameter / self.nm_p_px  # diameter in pixel
+        r_d_major = agent_diameter_um / self.um_p_px  # diameter in pixel
         r_r_major = r_d_major / 2
         r_r_major_half = r_d_major / 4
         r_r_minor = np.sqrt(r_r_major**2 - r_r_major_half**2)
@@ -322,12 +335,15 @@ class Shape:
         r_r_minor_half = r_r_minor / 2
 
         # get min and max
-        i_m_min = self.coor.loc[:,'m'].min()
-        i_m_max = self.coor.loc[:,'m'].max()
-        i_n_min = self.coor.loc[:,'n'].min()
-        i_n_max = self.coor.loc[:,'n'].max()
-        i_p_min = self.coor.loc[:,'p'].min()
-        i_p_max = self.coor.loc[:,'p'].max()
+        ai_m = np.array(sorted(set(self.coor.loc[:,'m'])))
+        ai_n = np.array(sorted(set(self.coor.loc[:,'n'])))
+        ai_p = np.array(sorted(set(self.coor.loc[:,'p'])))
+        i_m_min = ai_m.min()
+        i_m_max = ai_m.max()
+        i_n_min = ai_n.min()
+        i_n_max = ai_n.max()
+        i_p_min = ai_p.min()
+        i_p_max = ai_p.max()
 
         # layer 1a axis n and m
         lr_axis_l1a_n = sorted(axis(r_zero=0, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
@@ -335,27 +351,55 @@ class Shape:
         # layer 1b axis n and m
         lr_axis_l1b_n = sorted(axis(r_zero=r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
         lr_axis_l1b_m = sorted(axis(r_zero=r_r_minor, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
-        # layer 1 axis p 
-        lr_axis_l1_p = sorted(axis(r_zero=0, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
+        # layer 1 axis p
+        if (ai_p == np.array([0])):
+            lr_axis_l1_p = ai_p
+        else:
+            lr_axis_l1_p = sorted(axis(r_zero=0, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
         # get layer1 coordinates
-        df_hexcoor_layer1a = pd.DataFrame(itertools.product(lr_axis_l1a_m, lr_axis_l1a_n, lr_axis_l1_p), columns=['m','n','p']) 
-        df_hexcoor_layer1b = pd.DataFrame(itertools.product(lr_axis_l1b_m, lr_axis_l1b_n, lr_axis_l1_p), columns=['m','n','p']) 
+        df_hexcoor_layer1a = pd.DataFrame(itertools.product(lr_axis_l1a_m, lr_axis_l1a_n, lr_axis_l1_p), columns=['x','y','z'])
+        df_hexcoor_layer1b = pd.DataFrame(itertools.product(lr_axis_l1b_m, lr_axis_l1b_n, lr_axis_l1_p), columns=['x','y','z'])
 
-        # layer 2a axis n and m
-        lr_axis_l2a_n = sorted(axis(r_zero=r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
-        lr_axis_l2a_m = sorted(axis(r_zero=r_r_minor_half, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
-        # layer 2b axis n and m
-        lr_axis_l2b_n = sorted(axis(r_zero=r_r_major_half + r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
-        lr_axis_l2b_m = sorted(axis(r_zero=r_r_minor_half + r_r_minor, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
-        # layer 2 axis p 
-        lr_axis_l2_p = sorted(axis(r_zero=r_d_minor, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
-        # get layer2 coordinates
-        df_hexcoor_layer2a = pd.DataFrame(itertools.product(lr_axis_l2a_m, lr_axis_l2a_n, lr_axis_l2_p), columns=['m','n','p']) 
-        df_hexcoor_layer2b = pd.DataFrame(itertools.product(lr_axis_l2b_m, lr_axis_l2b_n, lr_axis_l2_p), columns=['m','n','p']) 
+        if (ai_p == np.array([0])):
+            # get layer2 coordinates
+            df_hexcoor_layer2a = pd.DataFrame()
+            df_hexcoor_layer2b = pd.DataFrame()
+        else:
+            # layer 2a axis n and m
+            lr_axis_l2a_n = sorted(axis(r_zero=r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
+            lr_axis_l2a_m = sorted(axis(r_zero=r_r_minor_half, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+            # layer 2b axis n and m
+            lr_axis_l2b_n = sorted(axis(r_zero=r_r_major_half + r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
+            lr_axis_l2b_m = sorted(axis(r_zero=r_r_minor_half + r_r_minor, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+            # layer 2 axis p
+            lr_axis_l2_p = sorted(axis(r_zero=r_d_minor, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
+            # get layer2 coordinates
+            df_hexcoor_layer2a = pd.DataFrame(itertools.product(lr_axis_l2a_m, lr_axis_l2a_n, lr_axis_l2_p), columns=['x','y','z'])
+            df_hexcoor_layer2b = pd.DataFrame(itertools.product(lr_axis_l2b_m, lr_axis_l2b_n, lr_axis_l2_p), columns=['x','y','z'])
 
         # agent seeding coordinates
         df_seed = pd.concat([df_hexcoor_layer1a, df_hexcoor_layer1b, df_hexcoor_layer2a, df_hexcoor_layer2b])
-        df_seed.rename({'m':'x', 'n':'y', 'p':'z'}, axis=1, inplace=True)
+
+        # filter by coordinate magic
+        di_x = {}
+        for r_x in sorted(set(df_seed.loc[:,'x'])):
+            i_m = ai_m[(np.abs(ai_m - r_x)).argmin()]
+            di_x.update({r_x: i_m})
+        df_seed['m'] = [di_x[r_x] for r_x in df_seed.loc[:,'x']]
+        di_y = {}
+        for r_y in sorted(set(df_seed.loc[:,'y'])):
+            i_n = ai_n[(np.abs(ai_n - r_y)).argmin()]
+            di_y.update({r_y: i_n})
+        df_seed['n'] = [di_y[r_y] for r_y in df_seed.loc[:,'y']]
+        di_z = {}
+        for r_z in sorted(set(df_seed.loc[:,'z'])):
+            i_p = ai_p[(np.abs(ai_p - r_z)).argmin()]
+            di_z.update({r_z: i_p})
+        df_seed['p'] = [di_z[r_z] for r_z in df_seed.loc[:,'z']]
+        # coor
+        df_seed['coor'] = df_seed.loc[:,'m'].astype(str) + '_' + df_seed.loc[:,'n'].astype(str) + '_' + df_seed.loc[:,'p'].astype(str)
+        es_coor = set(self.coor.loc[:,'m'].astype(str) + '_' + self.coor.loc[:,'n'].astype(str) + '_' + self.coor.loc[:,'p'].astype(str))
+        df_seed = df_seed.loc[df_seed.loc[:,'coor'].isin(es_coor),['x','y','z']]
 
         # agent celltypeing
         i_total = df_seed.shape[0]
@@ -363,9 +407,9 @@ class Shape:
         lr_fract = []
         for s_type, r_fract in agent_type_fraction.items():
             ls_type.append(s_type)
-            lr_fract.append(r_fract)  
+            lr_fract.append(r_fract)
         df_seed['type'] = np.random.choice(ls_type, size=i_total, p=lr_fract)
-        
+
         # add to results
         if (df_agent is None):
             df_agent = df_seed
@@ -385,7 +429,7 @@ class Shape:
         """
         return(self.agent)
 
-    def z_stack_mesh(self, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
+    def z_stack_mesh(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
         """
         plot z stack from shape df
         png None or name
@@ -393,7 +437,7 @@ class Shape:
         """
         df_coor = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
         df_coor['type'] = 'mesh'
-        pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
+        pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap=cmap, b_shuffle=False)
         z_stack(
             df_coor = df_coor,
             show = show,
@@ -401,10 +445,12 @@ class Shape:
             png = png,
             movie  = movie,
             facecolor = facecolor,
+            s = s,
+            figsize = figsize,
             frame_rate = frame_rate,
         )
 
-    def z_stack_agent(self, show=False, plot=None, png=None, movie=False, facecolor='white', frame_rate=24):
+    def z_stack_agent(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
         """
         plot z stack from agent df
         png None or name
@@ -413,7 +459,10 @@ class Shape:
         # plot agents
         df_coor = self.df_agent().copy()
         df_coor.z = df_coor.z.round().astype(int)
-        pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap='turbo', b_shuffle=False)
+        if type(cmap) == dict:
+            df_coor['type_color'] = [cmap[s_type] for s_type in df_coor.loc[:,'type']]
+        else:
+            pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap=cmap, b_shuffle=False)
         z_stack(
             df_coor = df_coor,
             show = show,
@@ -421,6 +470,8 @@ class Shape:
             png = png,
             movie  = movie,
             facecolor = facecolor,
+            s = s,
+            figsize = figsize,
             frame_rate = frame_rate,
         )
 
@@ -428,48 +479,55 @@ class Shape:
 class Brick(Shape):
     """
     """
-    def __init__(self, x, y, z=1, origin=(0,0,0), nm_p_px=1):
+    def __init__(self, x, y, z=1, origin=(0,0,0), um_p_px=1):
         """
         """
         # inhert
         super(Brick, self).__init__()
 
-        # x keeping the zero center in mind
-        i_x = int(round(x))
-        if (i_x % 2 != 0):
-            i_x += 1
-        i_rx = int(i_x / 2)
-
-        # y keeping the zero center in mind
-        i_y = int(round(y))
-        if (i_y % 2 != 0):
-            i_y += 1
-        i_ry = int(i_y / 2)
-
-        # z keeping the zero center in mind
-        i_z = int(round(z))
-        if (i_z % 2 != 0):
-            i_z += 1
-        i_rz = int(i_z / 2)
-
-        # handle origin input
+        # handle input
+        i_um_p_px = int(round(um_p_px))
         ti_origin = (int(round(origin[0])), int(round(origin[1])), int(round(origin[2])))
 
+        # x keeping the zero center in mind
+        i_x = int(round(x / i_um_p_px))
+        if (i_x % 2 != 0):
+            i_x += 1
+        i_rx = int((i_x * i_um_p_px) / 2)
+
+        # y keeping the zero center in mind
+        i_y = int(round(y / i_um_p_px))
+        if (i_y % 2 != 0):
+            i_y += 1
+        i_ry = int((i_y * i_um_p_px) / 2)
+
+        # z keeping the zero center in mind
+        if (z > i_um_p_px):
+            i_z = int(round(z / i_um_p_px))
+        else:
+            i_z = int(round(z))
+        if (i_z % 2 != 0):
+            i_z += 1
+        i_rz = int((i_z * i_um_p_px) / 2)
+
         # compute all coordinate combinations
-        iti_m = range(ti_origin[0] - i_rx + 1, ti_origin[0] + i_rx)
-        iti_n = range(ti_origin[1] - i_ry + 1, ti_origin[1] + i_ry)
-        iti_p = range(ti_origin[2] - i_rz + 1, ti_origin[2] + i_rz)
+        iti_m = range(ti_origin[0] - i_rx, ti_origin[0] + i_rx + 1, i_um_p_px)
+        iti_n = range(ti_origin[1] - i_ry, ti_origin[1] + i_ry + 1, i_um_p_px)
+        if (z == 1):
+            iti_p = range(1)
+        else:
+            iti_p = range(ti_origin[2] - i_rz, ti_origin[2] + i_rz + 1, i_um_p_px)
         df_coor = pd.DataFrame(itertools.product(iti_m, iti_n, iti_p), columns=['m','n','p'], dtype=np.int32)
 
         # store result
-        self.nm_p_px = nm_p_px
+        self.um_p_px = i_um_p_px
         self.coor = df_coor
 
 
 class Sphere(Shape):
     """
     """
-    def __init__(self, d, z=1, origin=(0,0,0), nm_p_px=1):
+    def __init__(self, d, z=1, origin=(0,0,0), um_p_px=1):
         """
         """
         # inhert
@@ -480,7 +538,7 @@ class Sphere(Shape):
             i_z = d
         else:
             i_z = z
-        o_brick = Brick(x=d, y=d, z=i_z, origin=origin, nm_p_px=nm_p_px)
+        o_brick = Brick(x=d, y=d, z=i_z, origin=origin, um_p_px=um_p_px)
         df_coor = o_brick.coor
 
         # comput r keeping the zero center in mind
@@ -502,5 +560,6 @@ class Sphere(Shape):
         df_coor = df_coor.loc[df_coor.inside, ['m','n','p']]
 
         # store result
+        self.um_p_px = o_brick.um_p_px
         self.coor = df_coor
 
