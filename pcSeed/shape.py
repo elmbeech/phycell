@@ -25,22 +25,19 @@ import sys
 
 
 # functions
-def axis(r_zero, r_min, r_max, r_step):
+def axis(r_min, r_max, r_step, r_origin=0):
     """
     """
-    #if (r_step < ):
+    # negative from origin
     er_neg = set()
-    if (r_min < r_zero):
-        if (abs(r_min) >= r_step):
-            er_neg = set(np.arange(r_zero, r_min - r_step, - r_step))
-        else:
-            er_neg = set(np.arange(r_zero, r_min, - r_step))
+    if (r_min <= r_origin):
+        er_neg = set(np.arange(r_origin, (r_min - r_step), -r_step))
+        er_neg = {n for n in er_neg if (n <= r_max) and (n >= r_min)}
+    # positive from origin
     er_pos = set()
-    if (r_max > r_zero):
-        if (r_max >= r_step):
-            er_pos = set(np.arange(r_zero, r_max + r_step, + r_step))
-        else:
-            er_pos = set(np.arange(r_zero, r_max, + r_step))
+    if (r_max >= r_origin):
+        er_pos = set(np.arange(r_origin, (r_max + r_step), +r_step))
+        er_pos = {n for n in er_pos if (n >= r_min) and (n <= r_max)}
     # output
     er_axis = er_neg.union(er_pos)
     return(er_axis)
@@ -308,13 +305,22 @@ class Shape:
         # stor result
         self.agent = df_agent
 
-    def seeding_hexagonal(self, agent_type_fraction, agent_diameter_um):
+    def seeding_hexagonal(self, agent_type_fraction, agent_diameter_um, lattice='HPC'):
         """
         agent_diameter_um in um
+        lattice='HPC' 'FCC'
         """
+        # handle lattice
+        if (lattice.upper() == 'HPC'):
+            i_layer = 2
+        elif (lattice.upper() == 'FCC'):
+            i_layer = 3
+        else:
+            sys.exit(f'Error @ Shape seeding_hexagonal: unknowen hexagonal lattice packing type {lattice}.\nknown are HPC and FCC.')
+
         # check if type fractions sum up to 1
         if (sum(agent_type_fraction.values()) != 1):
-            sys.exit(f'Error @ Shape agent_seeding: the agent type fractions do not sum up to 1 {sorted(agent_type_fraction.items())} = {sum(agent_type_fraction.values())}.')
+            sys.exit(f'Error @ Shape seeding_hexagonal: the agent type fractions do not sum up to 1 {sorted(agent_type_fraction.items())} = {sum(agent_type_fraction.values())}.')
 
         # save already seeded agents
         df_agent = None
@@ -326,8 +332,9 @@ class Shape:
             if (len(es_exist.intersection(es_seed)) > 0):
                 sys.exit(f'Error @ Shape agent_seeding: provided agent_type set {sorted(es_seed)} overlaps with already seeded agents {sorted(es_exist)}.\nplease adjust the agent_type_fraction dictionary.')
 
-        # calculate radius and such
-        r_d_major = agent_diameter_um / self.um_p_px  # diameter in pixel
+        # calculate hexagon radius and such
+        r_d_major = (agent_diameter_um * 2) / self.um_p_px  # diameter in pixel
+        r_3r_major = r_d_major * 1.5
         r_r_major = r_d_major / 2
         r_r_major_half = r_d_major / 4
         r_r_minor = np.sqrt(r_r_major**2 - r_r_major_half**2)
@@ -346,39 +353,88 @@ class Shape:
         i_p_max = ai_p.max()
 
         # layer 1a axis n and m
-        lr_axis_l1a_n = sorted(axis(r_zero=0, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
-        lr_axis_l1a_m = sorted(axis(r_zero=0, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+        lr_axis_l1a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=0))
+        lr_axis_l1a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=0))
         # layer 1b axis n and m
-        lr_axis_l1b_n = sorted(axis(r_zero=r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
-        lr_axis_l1b_m = sorted(axis(r_zero=r_r_minor, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+        lr_axis_l1b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=0))
+        lr_axis_l1b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=r_d_major))
+        # layer 1c axis n and m
+        lr_axis_l1c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=r_r_minor))
+        lr_axis_l1c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=r_r_major_half))
+        # layer 1d axis n and m
+        lr_axis_l1d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=r_r_minor))
+        lr_axis_l1d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major)))
         # layer 1 axis p
-        if (ai_p == np.array([0])):
-            lr_axis_l1_p = ai_p
-        else:
-            lr_axis_l1_p = sorted(axis(r_zero=0, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
-        # get layer1 coordinates
+        lr_axis_l1_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * i_layer, r_origin=0))
+        # get layer 1 coordinates
         df_hexcoor_layer1a = pd.DataFrame(itertools.product(lr_axis_l1a_m, lr_axis_l1a_n, lr_axis_l1_p), columns=['x','y','z'])
         df_hexcoor_layer1b = pd.DataFrame(itertools.product(lr_axis_l1b_m, lr_axis_l1b_n, lr_axis_l1_p), columns=['x','y','z'])
+        df_hexcoor_layer1c = pd.DataFrame(itertools.product(lr_axis_l1c_m, lr_axis_l1c_n, lr_axis_l1_p), columns=['x','y','z'])
+        df_hexcoor_layer1d = pd.DataFrame(itertools.product(lr_axis_l1d_m, lr_axis_l1d_n, lr_axis_l1_p), columns=['x','y','z'])
+        df_hexcoor_layer1 = pd.concat([df_hexcoor_layer1a, df_hexcoor_layer1b, df_hexcoor_layer1c, df_hexcoor_layer1d])
 
-        if (ai_p == np.array([0])):
-            # get layer2 coordinates
-            df_hexcoor_layer2a = pd.DataFrame()
-            df_hexcoor_layer2b = pd.DataFrame()
+        # bue 2022-12-01: code to keep you sane while developing!
+        #import matplotlib.pyplot as plt
+        #%matplotlib
+        #fig, ax = plt.subplots()
+        #df_hexcoor_layer1a.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='maroon')
+        #df_hexcoor_layer1b.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='red')
+        #df_hexcoor_layer1c.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='orange')
+        #df_hexcoor_layer1d.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='yellow')
+
+        if (ai_p.shape[0] == 1):
+            # get layer 2 and 3 coordinates
+            df_hexcoor_layer2 = pd.DataFrame()
+            df_hexcoor_layer3 = pd.DataFrame()
         else:
             # layer 2a axis n and m
-            lr_axis_l2a_n = sorted(axis(r_zero=r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
-            lr_axis_l2a_m = sorted(axis(r_zero=r_r_minor_half, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+            lr_axis_l2a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+r_r_minor_half)))
+            lr_axis_l2a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0+r_r_major_half)))
             # layer 2b axis n and m
-            lr_axis_l2b_n = sorted(axis(r_zero=r_r_major_half + r_r_major_half, r_min=i_n_min, r_max=i_n_max, r_step=r_r_major))
-            lr_axis_l2b_m = sorted(axis(r_zero=r_r_minor_half + r_r_minor, r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor))
+            lr_axis_l2b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+r_r_minor_half)))
+            lr_axis_l2b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major+r_r_major_half)))
+            # layer 2c axis n and m
+            lr_axis_l2c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+r_r_minor_half)))
+            lr_axis_l2c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half+r_r_major_half)))
+            # layer 2d axis n and m
+            lr_axis_l2d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+r_r_minor_half)))
+            lr_axis_l2d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major+r_r_major_half)))
             # layer 2 axis p
-            lr_axis_l2_p = sorted(axis(r_zero=r_d_minor, r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * 2))
-            # get layer2 coordinates
+            lr_axis_l2_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_d_minor, r_origin=r_d_minor))
+            # get layer 2 coordinates
             df_hexcoor_layer2a = pd.DataFrame(itertools.product(lr_axis_l2a_m, lr_axis_l2a_n, lr_axis_l2_p), columns=['x','y','z'])
             df_hexcoor_layer2b = pd.DataFrame(itertools.product(lr_axis_l2b_m, lr_axis_l2b_n, lr_axis_l2_p), columns=['x','y','z'])
+            df_hexcoor_layer2c = pd.DataFrame(itertools.product(lr_axis_l2c_m, lr_axis_l2c_n, lr_axis_l2_p), columns=['x','y','z'])
+            df_hexcoor_layer2d = pd.DataFrame(itertools.product(lr_axis_l2d_m, lr_axis_l2d_n, lr_axis_l2_p), columns=['x','y','z'])
+            df_hexcoor_layer2 = pd.concat([df_hexcoor_layer2a, df_hexcoor_layer2b, df_hexcoor_layer2c, df_hexcoor_layer2d])
+
+            if (i_layer < 3):
+                # get layer 3 coordinates
+                df_hexcoor_layer3 = pd.DataFrame()
+            else:
+                # layer 3a axis n and m
+                lr_axis_l3a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+2*r_r_minor_half)))
+                lr_axis_l3a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0+2*r_r_major_half)))
+                # layer 3b axis n and m
+                lr_axis_l3b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+2*r_r_minor_half)))
+                lr_axis_l3b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major+2*r_r_major_half)))
+                # layer 3c axis n and m
+                lr_axis_l3c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+2*r_r_minor_half)))
+                lr_axis_l3c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half+2*r_r_major_half)))
+                # layer 3d axis n and m
+                lr_axis_l3d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+2*r_r_minor_half)))
+                lr_axis_l3d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half+r_d_major+2*r_r_major_half)))
+                # layer 3 axis p
+                lr_axis_l3_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_d_minor, r_origin=2*r_d_minor))
+                # get layer 3 coordinates
+                df_hexcoor_layer3a = pd.DataFrame(itertools.product(lr_axis_l3a_m, lr_axis_l3a_n, lr_axis_l3_p), columns=['x','y','z'])
+                df_hexcoor_layer3b = pd.DataFrame(itertools.product(lr_axis_l3b_m, lr_axis_l3b_n, lr_axis_l3_p), columns=['x','y','z'])
+                df_hexcoor_layer3c = pd.DataFrame(itertools.product(lr_axis_l3c_m, lr_axis_l3c_n, lr_axis_l3_p), columns=['x','y','z'])
+                df_hexcoor_layer3d = pd.DataFrame(itertools.product(lr_axis_l3d_m, lr_axis_l3d_n, lr_axis_l3_p), columns=['x','y','z'])
+                df_hexcoor_layer3 = pd.concat([df_hexcoor_layer3a, df_hexcoor_layer3b, df_hexcoor_layer3c, df_hexcoor_layer3d])
 
         # agent seeding coordinates
-        df_seed = pd.concat([df_hexcoor_layer1a, df_hexcoor_layer1b, df_hexcoor_layer2a, df_hexcoor_layer2b])
+        df_seed = pd.concat([df_hexcoor_layer1, df_hexcoor_layer2, df_hexcoor_layer3])
 
         # filter by coordinate magic
         di_x = {}
@@ -489,19 +545,19 @@ class Brick(Shape):
         i_um_p_px = int(round(um_p_px))
         ti_origin = (int(round(origin[0])), int(round(origin[1])), int(round(origin[2])))
 
-        # x keeping the zero center in mind
+        # x keeping the zero in mind
         i_x = int(round(x / i_um_p_px))
         if (i_x % 2 != 0):
             i_x += 1
         i_rx = int((i_x * i_um_p_px) / 2)
 
-        # y keeping the zero center in mind
+        # y keeping the zero in mind
         i_y = int(round(y / i_um_p_px))
         if (i_y % 2 != 0):
             i_y += 1
         i_ry = int((i_y * i_um_p_px) / 2)
 
-        # z keeping the zero center in mind
+        # z keeping the zero in mind
         if (z > i_um_p_px):
             i_z = int(round(z / i_um_p_px))
         else:
@@ -541,7 +597,7 @@ class Sphere(Shape):
         o_brick = Brick(x=d, y=d, z=i_z, origin=origin, um_p_px=um_p_px)
         df_coor = o_brick.coor
 
-        # comput r keeping the zero center in mind
+        # comput r keeping the zero in mind
         i_d = int(round(d))
         if (i_d % 2 != 0):
             i_d += 1
