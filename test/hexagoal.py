@@ -116,7 +116,8 @@ import matplotlib.pyplot as plt
 # 3d
 brick = shape.Brick(x=8, y=8, z=2, origin=(0, 0, 0), um_p_px=2.0)
 print(brick.coor.shape) # 25
-brick.seeding_hexagonal({'a':1/3, 'b':2/3}, agent_diameter_um=2.0, lattice='HPC')
+#brick.seeding_hexagonal({'a':1/3, 'b':2/3}, agent_diameter_um=2.0, lattice='HPC')
+brick.seeding_hexagonal({'a':1/3, 'b':2/3}, agent_diameter_um=2.0, lattice='FCC')
 print(brick.agent.shape) # 50
 print(sorted(set(brick.coor.p)))
 
@@ -125,5 +126,5 @@ fig, ax = plt.subplots()
 brick.coor.plot(kind='scatter', x='m', y='n', grid=True, ylim=(-4,4), xlim=(-4,4), c='maroon', s=80, ax=ax)
 brick.agent.loc[brick.agent.z > 0,:].plot(kind='scatter', x='x', y='y', grid=True, ylim=(-4,4), xlim=(-4,4), c='red', s=40, ax=ax)
 brick.agent.loc[brick.agent.z == 0,:].plot(kind='scatter', x='x', y='y', grid=True, ylim=(-4,4), xlim=(-4,4), c='orange', s=40, ax=ax)
-#brick.agent.loc[brick.agent.z < 0,:].plot(kind='scatter', x='x', y='y', grid=True, ylim=(-4,4), xlim=(-4,4), c='yellow', s=40, ax=ax)
+brick.agent.loc[brick.agent.z < 0,:].plot(kind='scatter', x='x', y='y', grid=True, ylim=(-4,4), xlim=(-4,4), c='yellow', s=40, ax=ax)
 

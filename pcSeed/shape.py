@@ -332,6 +332,15 @@ class Shape:
             if (len(es_exist.intersection(es_seed)) > 0):
                 sys.exit(f'Error @ Shape agent_seeding: provided agent_type set {sorted(es_seed)} overlaps with already seeded agents {sorted(es_exist)}.\nplease adjust the agent_type_fraction dictionary.')
 
+        # bue 2022-12-01: code to keep you sane while developing!
+        #import itertools
+        #import numpy as np
+        #import pandas as pd
+        #agent_type_fraction = {'abc': 1}
+        #agent_diameter_um = 10
+        #lattice='HPC'
+        #r_d_major = (agent_diameter_um * 2)
+
         # calculate hexagon radius and such
         r_d_major = (agent_diameter_um * 2) / self.um_p_px  # diameter in pixel
         r_3r_major = r_d_major * 1.5
@@ -340,6 +349,7 @@ class Shape:
         r_r_minor = np.sqrt(r_r_major**2 - r_r_major_half**2)
         r_d_minor = r_r_minor * 2
         r_r_minor_half = r_r_minor / 2
+        r_r_minor_third = r_r_minor / 3
 
         # get min and max
         ai_m = np.array(sorted(set(self.coor.loc[:,'m'])))
@@ -351,6 +361,14 @@ class Shape:
         i_n_max = ai_n.max()
         i_p_min = ai_p.min()
         i_p_max = ai_p.max()
+
+        # bue 2022-12-01: code to keep you sane while developing!
+        #i_m_min = -100
+        #i_m_max = 100
+        #i_n_min= -100
+        #i_n_max = 100
+        #i_p_min = 0
+        #i_p_max = 1
 
         # layer 1a axis n and m
         lr_axis_l1a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=0))
@@ -388,17 +406,17 @@ class Shape:
             df_hexcoor_layer3 = pd.DataFrame()
         else:
             # layer 2a axis n and m
-            lr_axis_l2a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+r_r_minor_half)))
-            lr_axis_l2a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0+r_r_major_half)))
+            lr_axis_l2a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + r_r_minor_third)))
+            lr_axis_l2a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0 + r_r_major_half)))
             # layer 2b axis n and m
-            lr_axis_l2b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+r_r_minor_half)))
-            lr_axis_l2b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major+r_r_major_half)))
+            lr_axis_l2b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + r_r_minor_third)))
+            lr_axis_l2b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major + r_r_major_half)))
             # layer 2c axis n and m
-            lr_axis_l2c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+r_r_minor_half)))
-            lr_axis_l2c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half+r_r_major_half)))
+            lr_axis_l2c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + r_r_minor_third)))
+            lr_axis_l2c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half + r_r_major_half)))
             # layer 2d axis n and m
-            lr_axis_l2d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+r_r_minor_half)))
-            lr_axis_l2d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major+r_r_major_half)))
+            lr_axis_l2d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + r_r_minor_third)))
+            lr_axis_l2d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major + r_r_major_half)))
             # layer 2 axis p
             lr_axis_l2_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_d_minor, r_origin=r_d_minor))
             # get layer 2 coordinates
@@ -413,17 +431,17 @@ class Shape:
                 df_hexcoor_layer3 = pd.DataFrame()
             else:
                 # layer 3a axis n and m
-                lr_axis_l3a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+2*r_r_minor_half)))
-                lr_axis_l3a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0+2*r_r_major_half)))
+                lr_axis_l3a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + 2*r_r_minor_third)))
+                lr_axis_l3a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0 + 2*r_r_major_half)))
                 # layer 3b axis n and m
-                lr_axis_l3b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0+2*r_r_minor_half)))
-                lr_axis_l3b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major+2*r_r_major_half)))
+                lr_axis_l3b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + 2*r_r_minor_third)))
+                lr_axis_l3b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major + 2*r_r_major_half)))
                 # layer 3c axis n and m
-                lr_axis_l3c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+2*r_r_minor_half)))
-                lr_axis_l3c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half+2*r_r_major_half)))
+                lr_axis_l3c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + 2*r_r_minor_third)))
+                lr_axis_l3c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half + 2*r_r_major_half)))
                 # layer 3d axis n and m
-                lr_axis_l3d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor+2*r_r_minor_half)))
-                lr_axis_l3d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half+r_d_major+2*r_r_major_half)))
+                lr_axis_l3d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + 2*r_r_minor_third)))
+                lr_axis_l3d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major + 2*r_r_major_half)))
                 # layer 3 axis p
                 lr_axis_l3_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_d_minor, r_origin=2*r_d_minor))
                 # get layer 3 coordinates
