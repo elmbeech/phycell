@@ -42,6 +42,7 @@ def axis(r_min, r_max, r_step, r_origin=0):
     er_axis = er_neg.union(er_pos)
     return(er_axis)
 
+
 def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', s=1, figsize=(4, 4), frame_rate=24):
     """
     plot z stack from shape df
@@ -142,7 +143,7 @@ class Shape:
     """
     def __init__(self):
         self.agent = None # x,y,z,type dataframe
-        self.coor = None  # one pixel is equal to one um!
+        self.mesh = None  # one pixel is equal to one um!
         self.um_p_px = None # 1 is default
 
     def volume(self):
@@ -154,9 +155,8 @@ class Shape:
             function returns volume in pixels.
             a pixel is thought to have 1 micrometer side length.
         """
-        #return(self.coor.shape[0])
-        i_volumne = self.coor.shape[0]
-        i_p = len(set(self.coor.p))
+        i_volumne = self.mesh.shape[0]
+        i_p = len(set(self.mesh.p))
         if (i_p == 1):
             i_volumne = i_volumne * self.um_p_px * self.um_p_px
         else:
@@ -169,22 +169,22 @@ class Shape:
         """
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.union : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
-        df_union_coor = pd.merge(
-            self.coor,
-            shape.coor,
-            on=['m','n','p'],
+        df_union_mesh = pd.merge(
+            self.mesh,
+            shape.mesh,
+            on=['m','n','p','coor'],
             how='outer',
         )
         df_union_agent = pd.merge(
             self.agent,
             shape.agent,
-            on=['x','y','z','type'],
+            on=['x','y','z','coor','type'],
             how='outer',
         )
-        df_union_agent = df_union_agent.astype({'x': np.float32, 'y': np.float32, 'z': np.float32, 'type': str})
+        df_union_agent = df_union_agent.astype({'x': np.float32, 'y': np.float32, 'z': np.float32, 'coor':str, 'type': str})
         # output
         o_union = Shape()
-        o_union.coor = df_union_coor
+        o_union.mesh = df_union_mesh
         o_union.agent = df_union_agent
         o_union.um_p_px = self.um_p_px
         return(o_union)
@@ -196,14 +196,14 @@ class Shape:
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.intersection : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
         df_intersect = pd.merge(
-            self.coor,
-            shape.coor,
-            on=['m','n','p'],
+            self.mesh,
+            shape.mesh,
+            on=['m','n','p','coor'],
             how='inner',
         )
         # output
         o_intersection = Shape()
-        o_intersection.coor = df_intersect
+        o_intersection.mesh = df_intersect
         o_intersection.um_p_px = self.um_p_px
         return(o_intersection)
 
@@ -213,14 +213,13 @@ class Shape:
         """
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.difference : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
-        df_diff = self.coor.copy()
-        df_diff['coor'] = df_diff.loc[:,'m'].astype(str) + '_' + df_diff.loc[:,'n'].astype(str) + '_' + df_diff.loc[:,'p'].astype(str)
-        es_shape = set(shape.coor.loc[:,'m'].astype(str) + '_' + shape.coor.loc[:,'n'].astype(str) + '_' + shape.coor.loc[:,'p'].astype(str))
-        df_diff['intersection'] = df_diff['coor'].isin(es_shape)
-        df_diff = df_diff.loc[~ df_diff.loc[:,'intersection'],['m','n','p']]
+        df_diff = self.mesh.copy()
+        es_shape = set(shape.mesh.coor)
+        df_diff['intersection'] = df_diff.coor.isin(es_shape)
+        df_diff = df_diff.loc[~ df_diff.loc[:,'intersection'],['m','n','p','coor']]
         # output
         o_diff = Shape()
-        o_diff.coor = df_diff
+        o_diff.mesh = df_diff
         o_diff.um_p_px = self.um_p_px
         return(o_diff)
 
@@ -231,23 +230,22 @@ class Shape:
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.symetric_difference : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
         # left
-        df_diff_left = self.difference(shape).coor
+        df_diff_left = self.difference(shape).mesh
         # right
-        df_diff_right = shape.coor.copy()
-        df_diff_right['coor'] = df_diff_right.loc[:,'m'].astype(str) + '_' + df_diff_right.loc[:,'n'].astype(str) + '_' + df_diff_right.loc[:,'p'].astype(str)
-        es_self = set(self.coor.loc[:,'m'].astype(str) + '_' + self.coor.loc[:,'n'].astype(str) + '_' + self.coor.loc[:,'p'].astype(str))
-        df_diff_right['intersection'] = df_diff_right['coor'].isin(es_self)
-        df_diff_right = df_diff_right.loc[~ df_diff_right.loc[:,'intersection'],['m','n','p']]
+        df_diff_right = shape.mesh.copy()
+        es_self = set(self.mesh.coor)
+        df_diff_right['intersection'] = df_diff_right.coor.isin(es_self)
+        df_diff_right = df_diff_right.loc[~ df_diff_right.loc[:,'intersection'],['m','n','p','coor']]
         # fusion
         df_diff_sym = pd.merge(
             df_diff_left,
             df_diff_right,
-            on=['m','n','p'],
+            on=['m','n','p','coor'],
             how='outer'
         )
         # output
         o_diff_sym = Shape()
-        o_diff_sym.coor = df_diff_sym
+        o_diff_sym.mesh = df_diff_sym
         o_diff_sym.um_p_px = self.um_p_px
         return(o_diff_sym)
 
@@ -288,8 +286,8 @@ class Shape:
         for s_type, r_fract in agent_type_fraction.items():
             # seed agents
             i_seed = int(np.ceil(r_fract * r_total)) # better more then less
-            li_index = random.sample(list(self.coor.index), i_seed)
-            df_seed = self.coor.loc[li_index,:].copy()
+            li_index = random.sample(list(self.mesh.index), i_seed)
+            df_seed = self.mesh.loc[li_index,:].copy()
             df_seed.rename({'m':'x', 'n':'y', 'p':'z'}, axis=1, inplace=True)
             df_seed['type'] = s_type
             # jitter position
@@ -343,18 +341,16 @@ class Shape:
 
         # calculate hexagon radius and such
         r_d_major = (agent_diameter_um * 2) / self.um_p_px  # diameter in pixel
-        r_3r_major = r_d_major * 1.5
         r_r_major = r_d_major / 2
         r_r_major_half = r_d_major / 4
         r_r_minor = np.sqrt(r_r_major**2 - r_r_major_half**2)
         r_d_minor = r_r_minor * 2
-        r_r_minor_half = r_r_minor / 2
         r_r_minor_third = r_r_minor / 3
 
         # get min and max
-        ai_m = np.array(sorted(set(self.coor.loc[:,'m'])))
-        ai_n = np.array(sorted(set(self.coor.loc[:,'n'])))
-        ai_p = np.array(sorted(set(self.coor.loc[:,'p'])))
+        ai_m = np.array(sorted(set(self.mesh.loc[:,'m'])))
+        ai_n = np.array(sorted(set(self.mesh.loc[:,'n'])))
+        ai_p = np.array(sorted(set(self.mesh.loc[:,'p'])))
         i_m_min = ai_m.min()
         i_m_max = ai_m.max()
         i_n_min = ai_n.min()
@@ -372,24 +368,21 @@ class Shape:
 
         # layer 1a axis n and m
         lr_axis_l1a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=0))
-        lr_axis_l1a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=0))
-        # layer 1b axis n and m
-        lr_axis_l1b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=0))
-        lr_axis_l1b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=r_d_major))
+        lr_axis_l1a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=0))
         # layer 1c axis n and m
         lr_axis_l1c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=r_r_minor))
-        lr_axis_l1c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=r_r_major_half))
-        # layer 1d axis n and m
-        lr_axis_l1d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=r_r_minor))
-        lr_axis_l1d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major)))
+        lr_axis_l1c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=r_r_major_half))
         # layer 1 axis p
-        lr_axis_l1_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=r_d_minor * i_layer, r_origin=0))
+        lr_axis_l1_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=r_r_minor * i_layer, r_origin=0))
+
         # get layer 1 coordinates
-        df_hexcoor_layer1a = pd.DataFrame(itertools.product(lr_axis_l1a_m, lr_axis_l1a_n, lr_axis_l1_p), columns=['x','y','z'])
-        df_hexcoor_layer1b = pd.DataFrame(itertools.product(lr_axis_l1b_m, lr_axis_l1b_n, lr_axis_l1_p), columns=['x','y','z'])
-        df_hexcoor_layer1c = pd.DataFrame(itertools.product(lr_axis_l1c_m, lr_axis_l1c_n, lr_axis_l1_p), columns=['x','y','z'])
-        df_hexcoor_layer1d = pd.DataFrame(itertools.product(lr_axis_l1d_m, lr_axis_l1d_n, lr_axis_l1_p), columns=['x','y','z'])
-        df_hexcoor_layer1 = pd.concat([df_hexcoor_layer1a, df_hexcoor_layer1b, df_hexcoor_layer1c, df_hexcoor_layer1d])
+        #print('m min, max, step, len:', i_m_min, i_m_max, r_d_minor, len(lr_axis_l1a_m))
+        #print('n min, max, step, len:', i_n_min, i_n_max, r_r_major, len(lr_axis_l1a_n))
+        #print('p min, max, step, len:', i_p_min, i_p_max, r_r_minor*i_layer, len(lr_axis_l1_p))
+        df_hexcoor_layer1a = pd.DataFrame(itertools.product(lr_axis_l1a_m, lr_axis_l1a_n, lr_axis_l1_p), columns=['x','y','z'], dtype=np.float32)
+        df_hexcoor_layer1c = pd.DataFrame(itertools.product(lr_axis_l1c_m, lr_axis_l1c_n, lr_axis_l1_p), columns=['x','y','z'], dtype=np.float32)
+        df_hexcoor_layer1 = pd.concat([df_hexcoor_layer1a, df_hexcoor_layer1c])
+        print(f'processed hexcoor_layer1: {df_hexcoor_layer1.shape}')
 
         # bue 2022-12-01: code to keep you sane while developing!
         #import matplotlib.pyplot as plt
@@ -407,24 +400,17 @@ class Shape:
         else:
             # layer 2a axis n and m
             lr_axis_l2a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + r_r_minor_third)))
-            lr_axis_l2a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0 + r_r_major_half)))
-            # layer 2b axis n and m
-            lr_axis_l2b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + r_r_minor_third)))
-            lr_axis_l2b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major + r_r_major_half)))
+            lr_axis_l2a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(0 + r_r_major_half)))
             # layer 2c axis n and m
             lr_axis_l2c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + r_r_minor_third)))
-            lr_axis_l2c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half + r_r_major_half)))
-            # layer 2d axis n and m
-            lr_axis_l2d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + r_r_minor_third)))
-            lr_axis_l2d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major + r_r_major_half)))
+            lr_axis_l2c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(r_r_major_half + r_r_major_half)))
             # layer 2 axis p
-            lr_axis_l2_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_d_minor, r_origin=r_d_minor))
+            lr_axis_l2_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_r_minor, r_origin=r_d_minor))
             # get layer 2 coordinates
-            df_hexcoor_layer2a = pd.DataFrame(itertools.product(lr_axis_l2a_m, lr_axis_l2a_n, lr_axis_l2_p), columns=['x','y','z'])
-            df_hexcoor_layer2b = pd.DataFrame(itertools.product(lr_axis_l2b_m, lr_axis_l2b_n, lr_axis_l2_p), columns=['x','y','z'])
-            df_hexcoor_layer2c = pd.DataFrame(itertools.product(lr_axis_l2c_m, lr_axis_l2c_n, lr_axis_l2_p), columns=['x','y','z'])
-            df_hexcoor_layer2d = pd.DataFrame(itertools.product(lr_axis_l2d_m, lr_axis_l2d_n, lr_axis_l2_p), columns=['x','y','z'])
-            df_hexcoor_layer2 = pd.concat([df_hexcoor_layer2a, df_hexcoor_layer2b, df_hexcoor_layer2c, df_hexcoor_layer2d])
+            df_hexcoor_layer2a = pd.DataFrame(itertools.product(lr_axis_l2a_m, lr_axis_l2a_n, lr_axis_l2_p), columns=['x','y','z'], dtype=np.float32)
+            df_hexcoor_layer2c = pd.DataFrame(itertools.product(lr_axis_l2c_m, lr_axis_l2c_n, lr_axis_l2_p), columns=['x','y','z'], dtype=np.float32)
+            df_hexcoor_layer2 = pd.concat([df_hexcoor_layer2a, df_hexcoor_layer2c])
+            print(f'processed hexcoor_layer2: {df_hexcoor_layer2.shape}')
 
             if (i_layer < 3):
                 # get layer 3 coordinates
@@ -432,48 +418,46 @@ class Shape:
             else:
                 # layer 3a axis n and m
                 lr_axis_l3a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + 2*r_r_minor_third)))
-                lr_axis_l3a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(0 + 2*r_r_major_half)))
-                # layer 3b axis n and m
-                lr_axis_l3b_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + 2*r_r_minor_third)))
-                lr_axis_l3b_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_d_major + 2*r_r_major_half)))
+                lr_axis_l3a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(0 + 2*r_r_major_half)))
                 # layer 3c axis n and m
                 lr_axis_l3c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + 2*r_r_minor_third)))
-                lr_axis_l3c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half + 2*r_r_major_half)))
-                # layer 3d axis n and m
-                lr_axis_l3d_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + 2*r_r_minor_third)))
-                lr_axis_l3d_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_3r_major, r_origin=(r_r_major_half-r_d_major + 2*r_r_major_half)))
+                lr_axis_l3c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(r_r_major_half + 2*r_r_major_half)))
                 # layer 3 axis p
-                lr_axis_l3_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_d_minor, r_origin=2*r_d_minor))
+                lr_axis_l3_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_r_minor, r_origin=2*r_d_minor))
                 # get layer 3 coordinates
-                df_hexcoor_layer3a = pd.DataFrame(itertools.product(lr_axis_l3a_m, lr_axis_l3a_n, lr_axis_l3_p), columns=['x','y','z'])
-                df_hexcoor_layer3b = pd.DataFrame(itertools.product(lr_axis_l3b_m, lr_axis_l3b_n, lr_axis_l3_p), columns=['x','y','z'])
-                df_hexcoor_layer3c = pd.DataFrame(itertools.product(lr_axis_l3c_m, lr_axis_l3c_n, lr_axis_l3_p), columns=['x','y','z'])
-                df_hexcoor_layer3d = pd.DataFrame(itertools.product(lr_axis_l3d_m, lr_axis_l3d_n, lr_axis_l3_p), columns=['x','y','z'])
-                df_hexcoor_layer3 = pd.concat([df_hexcoor_layer3a, df_hexcoor_layer3b, df_hexcoor_layer3c, df_hexcoor_layer3d])
+                df_hexcoor_layer3a = pd.DataFrame(itertools.product(lr_axis_l3a_m, lr_axis_l3a_n, lr_axis_l3_p), columns=['x','y','z'], dtype=np.float32)
+                df_hexcoor_layer3c = pd.DataFrame(itertools.product(lr_axis_l3c_m, lr_axis_l3c_n, lr_axis_l3_p), columns=['x','y','z'], dtype=np.float32)
+                df_hexcoor_layer3 = pd.concat([df_hexcoor_layer3a, df_hexcoor_layer3c])
+                print(f'processed hexcoor_layer3: {df_hexcoor_layer3.shape}')
 
         # agent seeding coordinates
         df_seed = pd.concat([df_hexcoor_layer1, df_hexcoor_layer2, df_hexcoor_layer3])
+        print(f'processed hexcoor: {df_seed.shape}')
 
         # filter by coordinate magic
-        di_x = {}
-        for r_x in sorted(set(df_seed.loc[:,'x'])):
+        df_seed.loc[:,'m'] = None
+        for r_x in set(df_seed.x):
             i_m = ai_m[(np.abs(ai_m - r_x)).argmin()]
-            di_x.update({r_x: i_m})
-        df_seed['m'] = [di_x[r_x] for r_x in df_seed.loc[:,'x']]
-        di_y = {}
-        for r_y in sorted(set(df_seed.loc[:,'y'])):
+            df_seed.loc[df_seed.x == r_x,'m'] = i_m
+        print(f'processed m coor: {df_seed.shape}')
+
+        df_seed.loc[:,'n'] = None
+        for r_y in set(df_seed.y):
             i_n = ai_n[(np.abs(ai_n - r_y)).argmin()]
-            di_y.update({r_y: i_n})
-        df_seed['n'] = [di_y[r_y] for r_y in df_seed.loc[:,'y']]
-        di_z = {}
-        for r_z in sorted(set(df_seed.loc[:,'z'])):
+            df_seed.loc[df_seed.y == r_y,'n'] = i_n
+        print(f'processed n coor: {df_seed.shape}')
+
+        df_seed.loc[:,'p'] = None
+        for r_z in set(df_seed.z):
             i_p = ai_p[(np.abs(ai_p - r_z)).argmin()]
-            di_z.update({r_z: i_p})
-        df_seed['p'] = [di_z[r_z] for r_z in df_seed.loc[:,'z']]
+            df_seed.loc[df_seed.z == r_z,'p'] = i_p
+        print(f'processed p coor: {df_seed.shape}')
+
         # coor
         df_seed['coor'] = df_seed.loc[:,'m'].astype(str) + '_' + df_seed.loc[:,'n'].astype(str) + '_' + df_seed.loc[:,'p'].astype(str)
-        es_coor = set(self.coor.loc[:,'m'].astype(str) + '_' + self.coor.loc[:,'n'].astype(str) + '_' + self.coor.loc[:,'p'].astype(str))
-        df_seed = df_seed.loc[df_seed.loc[:,'coor'].isin(es_coor),['x','y','z']]
+        es_coor = set(self.coor.coor)
+        df_seed = df_seed.loc[df_seed.coor.isin(es_coor),['x','y','z','coor']]
+        print(f'processed seed: {df_seed.shape}')
 
         # agent celltypeing
         i_total = df_seed.shape[0]
@@ -482,7 +466,8 @@ class Shape:
         for s_type, r_fract in agent_type_fraction.items():
             ls_type.append(s_type)
             lr_fract.append(r_fract)
-        df_seed['type'] = np.random.choice(ls_type, size=i_total, p=lr_fract)
+        df_seed['type'] = np.random.choice(ls_type, size=i_total, replace=True, p=lr_fract)
+        print(f'processed type: {df_seed.shape}')
 
         # add to results
         if (df_agent is None):
@@ -496,7 +481,7 @@ class Shape:
     def df_mesh(self):
         """
         """
-        return(self.coor)
+        return(self.mesh)
 
     def df_agent(self):
         """
@@ -509,11 +494,11 @@ class Shape:
         png None or name
         movie None or name (png)
         """
-        df_coor = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
-        df_coor['type'] = 'mesh'
-        pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap=cmap, b_shuffle=False)
+        df_mesh = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
+        df_mesh['type'] = 'mesh'
+        pdplt.df_label_to_color(df_abc=df_mesh, s_label='type', s_cmap=cmap, b_shuffle=False)
         z_stack(
-            df_coor = df_coor,
+            df_coor = df_mesh,
             show = show,
             plot = plot,
             png = png,
@@ -531,14 +516,14 @@ class Shape:
         movi None or name (png)
         """
         # plot agents
-        df_coor = self.df_agent().copy()
-        df_coor.z = df_coor.z.round().astype(int)
+        df_agent = self.df_agent().copy()
+        df_agent.z = df_agent.z.round().astype(int)
         if type(cmap) == dict:
-            df_coor['type_color'] = [cmap[s_type] for s_type in df_coor.loc[:,'type']]
+            df_agent['type_color'] = [cmap[s_type] for s_type in df_agent.loc[:,'type']]
         else:
-            pdplt.df_label_to_color(df_abc=df_coor, s_label='type', s_cmap=cmap, b_shuffle=False)
+            pdplt.df_label_to_color(df_abc=df_agent, s_label='type', s_cmap=cmap, b_shuffle=False)
         z_stack(
-            df_coor = df_coor,
+            df_coor = df_agent,
             show = show,
             plot = plot,
             png = png,
@@ -553,87 +538,88 @@ class Shape:
 class Brick(Shape):
     """
     """
-    def __init__(self, x, y, z=1, origin=(0,0,0), um_p_px=1):
+    def __init__(self, x_um, y_um, z_um=1, origin_um=(0,0,0), um_p_px=1):
         """
         """
         # inhert
         super(Brick, self).__init__()
 
         # handle input
+        for n_um in origin_um:
+            if ((n_um / um_p_px) % 2 != 0):
+                sys.exit(f'Error @ shape.Brick : {n_um} in origin_um is not a multiple of um_p_px {um_p_px}!')
         i_um_p_px = int(round(um_p_px))
-        ti_origin = (int(round(origin[0])), int(round(origin[1])), int(round(origin[2])))
+        ti_origin = (int(round(origin_um[0] / i_um_p_px)), int(round(origin_um[1] / i_um_p_px)), int(round(origin_um[2] / i_um_p_px)))
 
         # x keeping the zero in mind
-        i_x = int(round(x / i_um_p_px))
-        if (i_x % 2 != 0):
-            i_x += 1
-        i_rx = int((i_x * i_um_p_px) / 2)
+        i_m = int(round(x_um / i_um_p_px))
+        if (i_m % 2 != 0):
+            i_m += 1
+        i_rm = int(i_m / 2)
 
         # y keeping the zero in mind
-        i_y = int(round(y / i_um_p_px))
-        if (i_y % 2 != 0):
-            i_y += 1
-        i_ry = int((i_y * i_um_p_px) / 2)
+        i_n = int(round(y_um / i_um_p_px))
+        if (i_n % 2 != 0):
+            i_n += 1
+        i_rn = int(i_n / 2)
 
         # z keeping the zero in mind
-        if (z > i_um_p_px):
-            i_z = int(round(z / i_um_p_px))
-        else:
-            i_z = int(round(z))
-        if (i_z % 2 != 0):
-            i_z += 1
-        i_rz = int((i_z * i_um_p_px) / 2)
+        i_p = int(round(z_um / i_um_p_px))
+        if (i_p % 2 != 0):
+            i_p += 1
+        i_rp = int(i_p / 2)
 
         # compute all coordinate combinations
-        iti_m = range(ti_origin[0] - i_rx, ti_origin[0] + i_rx + 1, i_um_p_px)
-        iti_n = range(ti_origin[1] - i_ry, ti_origin[1] + i_ry + 1, i_um_p_px)
-        if (z == 1):
-            iti_p = range(1)
+        iti_m = range(ti_origin[0] - i_rm, ti_origin[0] + i_rm + 1, 1)
+        iti_n = range(ti_origin[1] - i_rn, ti_origin[1] + i_rn + 1, 1)
+        if (i_p <= 1):
+            iti_p = range(1)  # 2D
         else:
-            iti_p = range(ti_origin[2] - i_rz, ti_origin[2] + i_rz + 1, i_um_p_px)
-        df_coor = pd.DataFrame(itertools.product(iti_m, iti_n, iti_p), columns=['m','n','p'], dtype=np.int32)
+            iti_p = range(ti_origin[2] - i_rp, ti_origin[2] + i_rp + 1, 1)  # 3D
+        print(f'mnp axis len: {len(iti_m)} {len(iti_n)} {len(iti_p)}')
+        df_mesh = pd.DataFrame(itertools.product(iti_m, iti_n, iti_p), columns=['m','n','p'], dtype=np.int32)
+        df_mesh['coor'] =  df_mesh.loc[:,'m'].astype(str) + '_' + df_mesh.loc[:,'n'].astype(str) + '_' + df_mesh.loc[:,'p'].astype(str)
 
         # store result
         self.um_p_px = i_um_p_px
-        self.coor = df_coor
+        self.mesh = df_mesh
 
 
 class Sphere(Shape):
     """
     """
-    def __init__(self, d, z=1, origin=(0,0,0), um_p_px=1):
+    def __init__(self, d_um, z_um=1, origin_um=(0,0,0), um_p_px=1):
         """
         """
         # inhert
         super(Sphere, self).__init__()
 
         # compute brick coordinates
-        if (z is None):
-            i_z = d
-        else:
-            i_z = z
-        o_brick = Brick(x=d, y=d, z=i_z, origin=origin, um_p_px=um_p_px)
-        df_coor = o_brick.coor
+        if (z_um is None):
+            z_um = d_um
+        o_brick = Brick(x_um=d_um, y_um=d_um, z_um=z_um, origin_um=origin_um, um_p_px=um_p_px)
+        df_mesh = o_brick.mesh
 
         # comput r keeping the zero in mind
-        i_d = int(round(d))
+        i_d = int(round(d_um / um_p_px))
         if (i_d % 2 != 0):
             i_d += 1
         i_r = int(i_d / 2)
 
         # handle origin input
-        ti_origin = (int(round(origin[0])), int(round(origin[1])), int(round(origin[2])))
+        i_um_p_px = int(round(um_p_px))
+        ti_origin = (int(round(origin_um[0] / i_um_p_px)), int(round(origin_um[1] / i_um_p_px)), int(round(origin_um[2] / i_um_p_px)))
 
         # carve with simple pythagoras sphere out of the bick.
-        df_coor['r2'] = i_r**2
-        df_coor['m2'] = (df_coor.loc[:,'m'] - ti_origin[0])**2
-        df_coor['n2'] = (df_coor.loc[:,'n'] - ti_origin[1])**2
-        df_coor['p2'] = (df_coor.loc[:,'p'] - ti_origin[2])**2
-        df_coor['m2n2p2'] = df_coor.loc[:,['m2','n2','p2']].sum(axis=1)
-        df_coor['inside'] = df_coor.loc[:,'m2n2p2'] <= df_coor.loc[:,'r2']
-        df_coor = df_coor.loc[df_coor.inside, ['m','n','p']]
+        df_mesh['r2'] = i_r**2
+        df_mesh['m2'] = (df_mesh.loc[:,'m'] - ti_origin[0])**2
+        df_mesh['n2'] = (df_mesh.loc[:,'n'] - ti_origin[1])**2
+        df_mesh['p2'] = (df_mesh.loc[:,'p'] - ti_origin[2])**2
+        df_mesh['m2n2p2'] = df_mesh.loc[:,['m2','n2','p2']].sum(axis=1)
+        df_mesh['inside'] = df_mesh.loc[:,'m2n2p2'] <= df_mesh.loc[:,'r2']
+        df_mesh = df_mesh.loc[df_mesh.inside, ['m','n','p','coor']]
 
         # store result
         self.um_p_px = o_brick.um_p_px
-        self.coor = df_coor
+        self.mesh = df_mesh
 
