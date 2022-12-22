@@ -12,6 +12,7 @@
 
 
 # libraries
+
 import itertools
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -24,7 +25,10 @@ import random
 import sys
 
 
-# functions
+######################
+# interlal functions #
+######################
+
 def axis(r_min, r_max, r_step, r_origin=0):
     """
     """
@@ -80,9 +84,11 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
             ls_pathfile = png.split('/')
             s_file = ls_pathfile.pop(-1)
             s_path = '/'.join(ls_pathfile)
-            if (len(s_path) > 0):
-               s_path = s_path + '/'
-            os.makedirs(s_path, exist_ok=True)
+            if (len(s_path) > 0) and (s_path != '.'):
+                s_path = s_path + '/'
+                os.makedirs(s_path, exist_ok=True)
+            else:
+                s_path = ''
             # save plot
             fig.savefig(f'{s_path}{s_file}', facecolor=facecolor)
         if show:
@@ -95,9 +101,11 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
         ls_pathfile = png.split('/')
         s_shape = ls_pathfile.pop(-1).replace('.png','')
         s_path = '/'.join(ls_pathfile)
-        if (len(s_path) > 0):
-           s_path = s_path + '/'
-        os.makedirs(s_path, exist_ok=True)
+        if (len(s_path) > 0) and (s_path != '.'):
+            s_path = s_path + '/'
+            os.makedirs(s_path, exist_ok=True)
+        else:
+            s_path = ''
         # generate png
         for i , i_z in enumerate(li_z):
             s_title = f'{s_shape}_z_layer'
@@ -137,13 +145,14 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
 ##################
 # class definion #
 ##################
+
 class Shape:
     """
     generic class
     """
     def __init__(self):
         self.agent = None # x,y,z,type dataframe
-        self.mesh = None  # one pixel is equal to one um!
+        self.mesh = None  # one pixel is equal to one times um_p_px um!
         self.um_p_px = None # 1 is default
 
     def volume(self):
@@ -294,6 +303,10 @@ class Shape:
             df_seed.loc[:,'x'] = df_seed.loc[:,'x'] + np.random.uniform(low=-0.5, high=0.5, size=i_seed)
             df_seed.loc[:,'y'] = df_seed.loc[:,'y'] + np.random.uniform(low=-0.5, high=0.5, size=i_seed)
             df_seed.loc[:,'z'] = df_seed.loc[:,'z'] + np.random.uniform(low=-0.5, high=0.5, size=i_seed)
+            # translate to um
+            df_seed.x = df_seed.x * self.um_p_px
+            df_seed.y = df_seed.y * self.um_p_px
+            df_seed.z = df_seed.z * self.um_p_px
             # add to results
             if (df_agent is None):
                 df_agent = df_seed
@@ -303,18 +316,20 @@ class Shape:
         # stor result
         self.agent = df_agent
 
-    def seeding_hexagonal(self, agent_type_fraction, agent_diameter_um, lattice='HPC'):
+    def seeding_hexagonal(self, agent_type_fraction, agent_diameter_um, lattice='HCP'):
         """
         agent_diameter_um in um
         lattice='HPC' 'FCC'
+        fcc: face cente cubical
+        hcp: hexaginal close packed
         """
         # handle lattice
-        if (lattice.upper() == 'HPC'):
+        if (lattice.lower() == 'hcp'):
             i_layer = 2
-        elif (lattice.upper() == 'FCC'):
+        elif (lattice.lower() == 'fcc'):
             i_layer = 3
         else:
-            sys.exit(f'Error @ Shape seeding_hexagonal: unknowen hexagonal lattice packing type {lattice}.\nknown are HPC and FCC.')
+            sys.exit(f'Error @ Shape seeding_hexagonal: unknowen hexagonal lattice packing type {lattice}.\nknown are HCP and FCC.')
 
         # check if type fractions sum up to 1
         if (sum(agent_type_fraction.values()) != 1):
@@ -336,7 +351,7 @@ class Shape:
         #import pandas as pd
         #agent_type_fraction = {'abc': 1}
         #agent_diameter_um = 10
-        #lattice='HPC'
+        #i_layer = 2
         #r_d_major = (agent_diameter_um * 2)
 
         # calculate hexagon radius and such
@@ -346,6 +361,14 @@ class Shape:
         r_r_minor = np.sqrt(r_r_major**2 - r_r_major_half**2)
         r_d_minor = r_r_minor * 2
         r_r_minor_third = r_r_minor / 3
+
+        # bue 2022-12-01: code to keep you sane while developing!
+        #i_m_min = -100
+        #i_m_max = 100
+        #i_n_min= -100
+        #i_n_max = 100
+        #i_p_min = 0
+        #i_p_max = 1
 
         # get min and max
         ai_m = np.array(sorted(set(self.mesh.loc[:,'m'])))
@@ -358,22 +381,14 @@ class Shape:
         i_p_min = ai_p.min()
         i_p_max = ai_p.max()
 
-        # bue 2022-12-01: code to keep you sane while developing!
-        #i_m_min = -100
-        #i_m_max = 100
-        #i_n_min= -100
-        #i_n_max = 100
-        #i_p_min = 0
-        #i_p_max = 1
-
         # layer 1a axis n and m
-        lr_axis_l1a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=0))
-        lr_axis_l1a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=0))
+        lr_axis_l1a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_r_major, r_origin=0))
+        lr_axis_l1a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_d_minor, r_origin=0))
         # layer 1c axis n and m
-        lr_axis_l1c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=r_r_minor))
-        lr_axis_l1c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=r_r_major_half))
+        lr_axis_l1c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_r_major, r_origin=r_r_major_half))
+        lr_axis_l1c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_d_minor, r_origin=r_r_minor))
         # layer 1 axis p
-        lr_axis_l1_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=r_r_minor * i_layer, r_origin=0))
+        lr_axis_l1_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=r_r_minor*i_layer, r_origin=0))
 
         # get layer 1 coordinates
         #print('m min, max, step, len:', i_m_min, i_m_max, r_d_minor, len(lr_axis_l1a_m))
@@ -389,9 +404,7 @@ class Shape:
         #%matplotlib
         #fig, ax = plt.subplots()
         #df_hexcoor_layer1a.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='maroon')
-        #df_hexcoor_layer1b.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='red')
         #df_hexcoor_layer1c.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='orange')
-        #df_hexcoor_layer1d.plot(kind='scatter', x='x', y='y', grid=True, ax=ax, c='yellow')
 
         if (ai_p.shape[0] == 1):
             # get layer 2 and 3 coordinates
@@ -399,13 +412,13 @@ class Shape:
             df_hexcoor_layer3 = pd.DataFrame()
         else:
             # layer 2a axis n and m
-            lr_axis_l2a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + r_r_minor_third)))
-            lr_axis_l2a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(0 + r_r_major_half)))
+            lr_axis_l2a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_r_major, r_origin=(0 + r_r_major_half)))
+            lr_axis_l2a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_d_minor, r_origin=(0 + r_r_minor_third)))
             # layer 2c axis n and m
-            lr_axis_l2c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + r_r_minor_third)))
-            lr_axis_l2c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(r_r_major_half + r_r_major_half)))
+            lr_axis_l2c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_r_major, r_origin=(r_r_major_half + r_r_major_half)))
+            lr_axis_l2c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_d_minor, r_origin=(r_r_minor + r_r_minor_third)))
             # layer 2 axis p
-            lr_axis_l2_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_r_minor, r_origin=r_d_minor))
+            lr_axis_l2_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_r_minor, r_origin=r_r_minor))
             # get layer 2 coordinates
             df_hexcoor_layer2a = pd.DataFrame(itertools.product(lr_axis_l2a_m, lr_axis_l2a_n, lr_axis_l2_p), columns=['x','y','z'], dtype=np.float32)
             df_hexcoor_layer2c = pd.DataFrame(itertools.product(lr_axis_l2c_m, lr_axis_l2c_n, lr_axis_l2_p), columns=['x','y','z'], dtype=np.float32)
@@ -417,13 +430,13 @@ class Shape:
                 df_hexcoor_layer3 = pd.DataFrame()
             else:
                 # layer 3a axis n and m
-                lr_axis_l3a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(0 + 2*r_r_minor_third)))
-                lr_axis_l3a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(0 + 2*r_r_major_half)))
+                lr_axis_l3a_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_r_major, r_origin=(0 + 2*r_r_major_half)))
+                lr_axis_l3a_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_d_minor, r_origin=(0 + 2*r_r_minor_third)))
                 # layer 3c axis n and m
-                lr_axis_l3c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_d_minor, r_origin=(r_r_minor + 2*r_r_minor_third)))
-                lr_axis_l3c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_r_major, r_origin=(r_r_major_half + 2*r_r_major_half)))
+                lr_axis_l3c_m = sorted(axis(r_min=i_m_min, r_max=i_m_max, r_step=r_r_major, r_origin=(r_r_major_half + 2*r_r_major_half)))
+                lr_axis_l3c_n = sorted(axis(r_min=i_n_min, r_max=i_n_max, r_step=r_d_minor, r_origin=(r_r_minor + 2*r_r_minor_third)))
                 # layer 3 axis p
-                lr_axis_l3_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_r_minor, r_origin=2*r_d_minor))
+                lr_axis_l3_p = sorted(axis(r_min=i_p_min, r_max=i_p_max, r_step=i_layer*r_r_minor, r_origin=2*r_r_minor))
                 # get layer 3 coordinates
                 df_hexcoor_layer3a = pd.DataFrame(itertools.product(lr_axis_l3a_m, lr_axis_l3a_n, lr_axis_l3_p), columns=['x','y','z'], dtype=np.float32)
                 df_hexcoor_layer3c = pd.DataFrame(itertools.product(lr_axis_l3c_m, lr_axis_l3c_n, lr_axis_l3_p), columns=['x','y','z'], dtype=np.float32)
@@ -455,8 +468,13 @@ class Shape:
 
         # coor
         df_seed['coor'] = df_seed.loc[:,'m'].astype(str) + '_' + df_seed.loc[:,'n'].astype(str) + '_' + df_seed.loc[:,'p'].astype(str)
-        es_coor = set(self.coor.coor)
+        es_coor = set(self.mesh.coor)
         df_seed = df_seed.loc[df_seed.coor.isin(es_coor),['x','y','z','coor']]
+
+        # translate to um
+        df_seed.x = df_seed.x * self.um_p_px
+        df_seed.y = df_seed.y * self.um_p_px
+        df_seed.z = df_seed.z * self.um_p_px
         print(f'processed seed: {df_seed.shape}')
 
         # agent celltypeing
@@ -478,6 +496,11 @@ class Shape:
         # save result
         self.agent = df_agent
 
+    def seeding_erase(self):
+        """
+        """
+        self.agent = None
+
     def df_mesh(self):
         """
         """
@@ -487,6 +510,14 @@ class Shape:
         """
         """
         return(self.agent)
+
+    def df_agent_to_pccsv(self, pathfile='agent_coor_um.csv', replace={}):
+        """
+        """
+        s_path = '/'.join(pathfile.split('/')[:-1])
+        if (len(s_path) > 0) and (s_path != '.'):
+            os.makedirs(s_path, exist_ok=True)
+        self.df_agent().replace(replace).loc[:,['x','y','z','type']].to_csv(pathfile, header=False, index=False)
 
     def z_stack_mesh(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
         """
