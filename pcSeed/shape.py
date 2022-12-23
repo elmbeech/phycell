@@ -31,6 +31,16 @@ import sys
 
 def axis(r_min, r_max, r_step, r_origin=0):
     """
+    input:
+        r_min:
+        r_max:
+        r_step:
+        r_origin:
+
+    output:
+        er_axis:
+
+    description:
     """
     # negative from origin
     er_neg = set()
@@ -49,6 +59,12 @@ def axis(r_min, r_max, r_step, r_origin=0):
 
 def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', s=1, figsize=(4, 4), frame_rate=24):
     """
+    input:
+
+    output:
+
+    description:
+
     plot z stack from shape df
     png None or name
     movie None or name (png)
@@ -148,9 +164,15 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
 
 class Shape:
     """
-    generic class
+    description:
+        generic class. the skeleton of every othe shape class.
     """
     def __init__(self):
+        """
+        description:
+            initializes object by reseting agent dataframe, mesh dataframe,
+            and um_p_px integer variables.
+        """
         self.agent = None # x,y,z,type dataframe
         self.mesh = None  # one pixel is equal to one times um_p_px um!
         self.um_p_px = None # 1 is default
@@ -158,11 +180,10 @@ class Shape:
     def volume(self):
         """
         output:
-           volume: integer in um**2 or um**3
+           i_volume: integer in um**2 or um**3.
 
         description:
-            function returns volume in pixels.
-            a pixel is thought to have 1 micrometer side length.
+            function returns volume in square or cubic micrometer.
         """
         i_volumne = self.mesh.shape[0]
         i_p = len(set(self.mesh.p))
@@ -174,7 +195,18 @@ class Shape:
 
     def union(self, shape):
         """
-        # coor and agents
+        input:
+            self: Shape object.
+            shape: Shape object.
+
+        output:
+            o_union: Shape object 
+                with self and shape mesh dataframe union,
+                and self and shape agent dataframe union.
+
+        description:
+            takes the mesh dataframe and agent dataframe union 
+            of self and shape to returns a new Shape object.
         """
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.union : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
@@ -200,7 +232,18 @@ class Shape:
 
     def intersection(self, shape):
         """
-        # coor and agents
+        input:
+            self: Shape object.
+            shape: Shape object.
+
+        output:
+            o_intersection: Shape object
+                with self and shape mesh dataframe intersection,
+                and agent dataframe reset.
+
+        description:
+            takes the mesh dataframe intersection
+            of self and shape to returns a new Shape object.
         """
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.intersection : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
@@ -218,7 +261,18 @@ class Shape:
 
     def difference(self, shape):
         """
-        # coor and agents
+        input:
+            self: Shape object.
+            shape: Shape object.
+
+        output:
+            o_diff: Shape object
+                with self minus shape mesh dataframe,
+                and agent dataframe reset.
+
+        description:
+            takes the mesh dataframe intersection
+            of self and shape to returns a new Shape object.
         """
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.difference : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
@@ -234,7 +288,18 @@ class Shape:
 
     def symetric_difference(self, shape):
         """
-        # coor and agents
+        input:
+            self: Shape object.
+            shape: Shape object.
+
+        output:
+            o_diff_sym: Shape object
+                with self minus shape plus shape minus self mesh dataframe,
+                and agent dataframe reset.
+
+        description:
+            takes the mesh dataframe symetric difference
+            of self and shape to returns a new Shape object.
         """
         if (self.um_p_px != shape.um_p_px):
             sys.exit(f'Error @ Shape.symetric_difference : the self and shape object are not the same um per pixel scale ({self.um_p_px} != {shape.um_p_px}).\nobjects can not be fused!')
@@ -498,16 +563,28 @@ class Shape:
 
     def seeding_erase(self):
         """
+        output:
+        description:
         """
         self.agent = None
 
     def df_mesh(self):
         """
+        output:
+            df_mesh: mesh dataframe.
+
+        description:
+            function returns the objects mesh dataframe. 
         """
         return(self.mesh)
 
     def df_agent(self):
         """
+        output:
+            df_agent: agent dataframe.
+
+        description:
+            function returns the objects agent dataframe. 
         """
         return(self.agent)
 
@@ -571,6 +648,9 @@ class Brick(Shape):
     """
     def __init__(self, x_um, y_um, z_um=1, origin_um=(0,0,0), um_p_px=1):
         """
+        input:
+           um_p_px: integer micrometer per pixel side length reset.
+
         """
         # inhert
         super(Brick, self).__init__()
