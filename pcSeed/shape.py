@@ -41,6 +41,7 @@ def axis(r_min, r_max, r_step, r_origin=0):
         er_axis:
 
     description:
+
     """
     # negative from origin
     er_neg = set()
@@ -60,14 +61,44 @@ def axis(r_min, r_max, r_step, r_origin=0):
 def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', s=1, figsize=(4, 4), frame_rate=24):
     """
     input:
+        df_coor: dataframe
+            mesh or agenet coordinate dataframe.
+
+        show: boolean
+
+        plot: ???
+
+        png: string.
+            #png None or name
+
+        movie: boolean
+            specify if from the pngs an mp4 movie should be generated.
+
+        facecolor: string
+
+        s: real
+            to set figure marker size.
+            default is 1.
+
+        figsize: tuple of real
+            to set figure width and hight values in inch.
+            default is (4,4).
+
+        frame_rate: integer
+            to set the movies frame per secound rate.
+            default is 24.
+
+        input:
+            x_um: integer
+                brick width in micro meter.
+
+            y_um: integer
+                brick hight in micro meter.
 
     output:
 
     description:
-
-    plot z stack from shape df
-    png None or name
-    movie None or name (png)
+        #plot z stack from shape df
     """
     # handle input
     i_min_axis = min({df_coor['x'].min() - 1, df_coor['y'].min() - 1})
@@ -637,11 +668,6 @@ class Shape:
 
     def z_stack_mesh(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
         """
-        input:
-
-        plot z stack from shape df
-        png None or name
-        movie None or name (png)
         """
         df_mesh = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
         df_mesh['type'] = 'mesh'
@@ -660,9 +686,6 @@ class Shape:
 
     def z_stack_agent(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
         """
-        plot z stack from agent df
-        png None or name
-        movi None or name (png)
         """
         # plot agents
         df_agent = self.df_agent().copy()
