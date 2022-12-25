@@ -165,13 +165,13 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
 class Shape:
     """
     description:
-        generic class. the skeleton of every othe shape class.
+        generic class. the skeleton of every other shape class.
     """
     def __init__(self):
         """
         description:
-            initializes object by reseting agent dataframe, mesh dataframe,
-            and um_p_px integer variables.
+            initializes Shape object instance by resetting
+            agent dataframe, mesh dataframe, and um_p_px integer variables.
         """
         self.agent = None # x,y,z,type dataframe
         self.mesh = None  # one pixel is equal to one times um_p_px um!
@@ -185,12 +185,9 @@ class Shape:
         description:
             function returns volume in square or cubic micrometer.
         """
-        i_volumne = self.mesh.shape[0]
-        i_p = len(set(self.mesh.p))
-        if (i_p == 1):
-            i_volumne = i_volumne * self.um_p_px * self.um_p_px
-        else:
-            i_volumne = i_volumne * self.um_p_px * self.um_p_px * self.um_p_px
+        i_pixel = self.mesh.shape[0]
+        i_volume_pixel = self.um_p_px * self.um_p_px * self.um_p_px
+        i_volumne = i_pixel * i_volume_pixel
         return(i_volumne)
 
     def union(self, shape):
@@ -200,12 +197,12 @@ class Shape:
             shape: Shape object.
 
         output:
-            o_union: Shape object 
+            o_union: Shape object
                 with self and shape mesh dataframe union,
                 and self and shape agent dataframe union.
 
         description:
-            takes the mesh dataframe and agent dataframe union 
+            takes the mesh dataframe and agent dataframe union
             of self and shape to returns a new Shape object.
         """
         if (self.um_p_px != shape.um_p_px):
@@ -328,18 +325,31 @@ class Shape:
         input:
             agent_type_fraction: dictionary
                 dictionay with agent_type label as key and fraction as value.
-                all fractions iagent_type_fractionn the dictionary should sum up to 1.
+                the fractions have to sum up to 1.
                 e.g. {'a': 1} or {'a': 2/3,'b': 1/3} or {'a': 0.75, 'b': 0.25}
-            agent_density in agent/um**2 or agent/um**3
+                default is None.
+
+            agent_count: integer
+                total agent count.
+                either agent_count or agent_density have to be set.
+                default is None.
+
+            agent_density: real
+                cell density in agent/um**2 or agent/um**3
+                either agent_count or agent_density have to be set.
+                default is None.
+
+        output:
+            self.agent dataframe.
 
         description:
-
+            frunction to randomly seed the mesh by the given parameters.
         """
         # check if type fractions sum up to 1
         if (sum(agent_type_fraction.values()) != 1):
             sys.exit(f'Error @ Shape seeding_random: the agent type fractions do not sum up to 1 {sorted(agent_type_fraction.items())} = {sum(agent_type_fraction.values())}.')
 
-        # check if agent seeding density is set
+        # handle agent_count and agent_density
         if ((agent_count is None) and (agent_density is None)) or (not (agent_count is None) and not (agent_density is None)):
             sys.exit(f'Error @ Shape seeding_random: either agent_density ({agent_density}) or agent_count ({agent_count}) have to be set.\nNone or both are set!')
         if (agent_density is None):
@@ -381,12 +391,29 @@ class Shape:
         # stor result
         self.agent = df_agent
 
-    def seeding_hexagonal(self, agent_type_fraction, agent_diameter_um, lattice='HCP'):
+    def seeding_packed(self, agent_type_fraction, agent_diameter_um, lattice='HCP'):
         """
-        agent_diameter_um in um
-        lattice='HPC' 'FCC'
-        fcc: face cente cubical
-        hcp: hexaginal close packed
+        input:
+            agent_type_fraction: dictionary
+                dictionay with agent_type label as key and fraction as value.
+                the fractions have to sum up to 1.
+                e.g. {'a': 1} or {'a': 2/3,'b': 1/3} or {'a': 0.75, 'b': 0.25}
+                default is None.
+
+            agent_diameter_um: real
+                cell diameter in micro meter.
+
+            lattice: string
+                fcc: face centered cubical.
+                hcp: hexagonal close packed.
+                default is hcp
+                + https://msestudent.com/what-is-the-difference-between-fcc-and-hcp-crystal-structure-properties-interstitial-sites-and-examples/
+
+        output:
+            self.agent dataframe.
+
+        description:
+            frunction to cristal strucure packed seed hexagonal agents.
         """
         # handle lattice
         if (lattice.lower() == 'hcp'):
@@ -563,8 +590,8 @@ class Shape:
 
     def seeding_erase(self):
         """
-        output:
         description:
+            function resets self.agent dataframe to None.
         """
         self.agent = None
 
@@ -574,7 +601,7 @@ class Shape:
             df_mesh: mesh dataframe.
 
         description:
-            function returns the objects mesh dataframe. 
+            function returns the objects mesh dataframe.
         """
         return(self.mesh)
 
@@ -584,12 +611,24 @@ class Shape:
             df_agent: agent dataframe.
 
         description:
-            function returns the objects agent dataframe. 
+            function returns the objects agent dataframe.
         """
         return(self.agent)
 
     def df_agent_to_pccsv(self, pathfile='agent_coor_um.csv', replace={}):
         """
+        input:
+            pathfile: sting
+                specift path/filename.csv to save the datafarme
+                as coma separated value file.
+
+            replace: dictionary
+                dictionary to replace agent_type labels to integers.
+                physicell can only handle integer labels.
+
+        description:
+            function to save the agent dataframe in physicell compatible
+            fromat, that it can ve used as seeding input.
         """
         s_path = '/'.join(pathfile.split('/')[:-1])
         if (len(s_path) > 0) and (s_path != '.'):
@@ -598,6 +637,8 @@ class Shape:
 
     def z_stack_mesh(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
         """
+        input:
+
         plot z stack from shape df
         png None or name
         movie None or name (png)
@@ -645,12 +686,42 @@ class Shape:
 
 class Brick(Shape):
     """
+    description:
+        the brick Shape class offspring.
     """
     def __init__(self, x_um, y_um, z_um=1, origin_um=(0,0,0), um_p_px=1):
         """
         input:
-           um_p_px: integer micrometer per pixel side length reset.
+            x_um: integer
+                brick width in micro meter.
 
+            y_um: integer
+                brick hight in micro meter.
+
+            z_um: integer
+                brick depth in micro meter.
+                1 will result in a 2D rectangle mesh.
+                default is 1.
+
+            original_um: tuple of x,y,z integeres.
+                the origin numbers have to be 0 or
+                a positive or negative multiple of um_p_px.
+
+            um_p_px: integer
+                to specify micrometer per mesh pixel side length.
+                as a fist rule, set the  value to about half of the smallest agent diameter.
+                small values will result in smother shapes.
+                small values will use more RAM and time to process.
+                all objects to be fused (union, intersection, difference, symetric_difference)
+                have to have the same um_p_px value.
+                default is 1.
+
+        output:
+            self.mesh dataframe
+                brick mesh shaped Shape instance.
+
+        description:
+            initializes brick shaped Shape object instance.
         """
         # inhert
         super(Brick, self).__init__()
@@ -698,9 +769,42 @@ class Brick(Shape):
 
 class Sphere(Shape):
     """
+    description:
+        the sphere Shape class offspring.
     """
     def __init__(self, d_um, z_um=1, origin_um=(0,0,0), um_p_px=1):
         """
+        input:
+            d_um: integer
+                sphere diameter in micro meter.
+
+            z_um: integer
+                object depth in micro meter.
+                1 will result in a 2D circle mesh.
+                None will result in a perfect sphere.
+                any other value (> 0 and < d_um) will result in a
+                slice through the sphere.
+                default is 1.
+
+            original_um: tuple of x,y,z integeres.
+                the origin numbers have to be 0 or
+                a positive or negative multiple of um_p_px.
+
+            um_p_px: integer
+                to specify micrometer per mesh pixel side length.
+                as a fist rule, set the  value to about half of the smallest agent diameter.
+                small values will result in smother shapes.
+                small values will use more RAM and time to process.
+                all objects to be fused (union, intersection, difference, symetric_difference)
+                have to have the same um_p_px value.
+                default is 1.
+
+        output:
+            self.mesh dataframe
+                sphere mesh shaped Shape instance.
+
+        description:
+            initializes sphere shaped Shape object instance.
         """
         # inhert
         super(Sphere, self).__init__()
