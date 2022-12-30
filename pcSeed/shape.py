@@ -33,15 +33,24 @@ def axis(r_min, r_max, r_step, r_origin=0):
     """
     input:
         r_min:
+            axis minimum value.
+
         r_max:
+            axis maximum vale.
+
         r_step:
-        r_origin:
+            distance inbetween axis ticks.
+
+        r_origin: origin coordinate.
 
     output:
-        er_axis:
+        er_axis: set of axis ticks.
 
     description:
-
+        function to generate axis coordinate ticks.
+        all stepping start by the origin coordinate.
+        r_min and r_max are only part of the axis tick set,
+        if they coincide with a step point.
     """
     # negative from origin
     er_neg = set()
@@ -58,89 +67,86 @@ def axis(r_min, r_max, r_step, r_origin=0):
     return(er_axis)
 
 
-def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='white', s=1, figsize=(4, 4), frame_rate=24):
+def z_stack(df_coor, show=False, png=None, movie=False, s=1, figsize=(4, 4), facecolor='white', frame_rate=24):
     """
     input:
         df_coor: dataframe
             mesh or agenet coordinate dataframe.
 
         show: boolean
+            to specify if the mesh or agent z slice through the origin
+            should been displayed?
+            default is False.
 
-        plot: ???
-
-        png: string.
-            #png None or name
+        png: string
+            filename.png that should used as filename template for the plots.
+            if None, no png files will be generated.
+            default is None.
 
         movie: boolean
-            specify if from the pngs an mp4 movie should be generated.
-
-        facecolor: string
+            to specify if from the pngs an mp4 movie should be generated.
+            default is False.
 
         s: real
-            to set figure marker size.
+            to set the datapoint marker size.
             default is 1.
 
         figsize: tuple of real
-            to set figure width and hight values in inch.
+            to set the figure width and hight values in inch.
             default is (4,4).
+
+        facecolor: string
+            to set the figure background color.
+            default is white.
 
         frame_rate: integer
             to set the movies frame per secound rate.
-            default is 24.
-
-        input:
-            x_um: integer
-                brick width in micro meter.
-
-            y_um: integer
-                brick hight in micro meter.
+            default is 24 frames per secound.
 
     output:
+        by defalt this function outputs nothing. if set,
+        + show will display the z stack slice though the origin.
+        + png will save the stack as png files.
+        + movie will generate a move from the png files.
 
     description:
-        #plot z stack from shape df
+        function to visualize the mesh and agent dataframe.
     """
     # handle input
     i_min_axis = min({df_coor['x'].min() - 1, df_coor['y'].min() - 1})
     i_max_axis = max({df_coor['x'].max() + 1, df_coor['y'].max() + 1})
     li_z = sorted(df_coor['z'].unique(), reverse=True)
 
-    # show and plot mesh or agents
-    if show or not (plot is None):
+    # show mesh or agent z stack slice through origin
+    if show:
         # generate plot
-        i_z_total = len(li_z)
-        fig, ax = plt.subplots(
-            nrows=i_z_total, ncols=1, sharex=True, figsize=(4, 4*i_z_total)
+        s_title = f'{s_shape}_z_layer'
+        fig, ax = plt.subplots(figsize=figsize)
+        df_z = df_coor.loc[df_coor['z'] == 0, :]
+        df_z.plot(
+            kind = 'scatter',
+            x = 'x',
+            y = 'y',
+            s = s,
+            color = df_z.loc[:, 'type_color'],
+            xlim = (i_min_axis, i_max_axis),
+            ylim = (i_min_axis, i_max_axis),
+            grid = True,
+            title = f'{s_title}: {i_z}',
+            ax = ax,
         )
-        ax = np.ravel(ax)
-        for i , i_z in enumerate(li_z):
-            df_z = df_coor.loc[df_coor['z']==i_z, :]
-            df_z.plot(
-                kind = 'scatter',
-                x = 'x',
-                y = 'y',
-                color = df_z.loc[:, 'type_color'],
-                xlim = (i_min_axis, i_max_axis),
-                ylim = (i_min_axis, i_max_axis),
-                grid = True,
-                title = f'z_stack: {i_z}',
-                ax = ax[i]
-            )
-        if not (plot is None):
-            # handle path and filename
-            ls_pathfile = png.split('/')
-            s_file = ls_pathfile.pop(-1)
-            s_path = '/'.join(ls_pathfile)
-            if (len(s_path) > 0) and (s_path != '.'):
-                s_path = s_path + '/'
-                os.makedirs(s_path, exist_ok=True)
-            else:
-                s_path = ''
-            # save plot
-            fig.savefig(f'{s_path}{s_file}', facecolor=facecolor)
-        if show:
-            # show plot
-            fig.show()
+        # genersate legend
+        pdplt.ax_colorlegend(
+            ax = ax,
+            df_abc = df_z,
+            s_label = 'type',
+            s_color = 'type_color',
+            r_x_figure2legend_space = -0.99,
+            s_fontsize = 'small'
+        )
+        # show plot
+        plt.tight_layout()
+        fig.show()
 
     # mesh or agents to png
     if not (png is None):
@@ -153,7 +159,7 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
             os.makedirs(s_path, exist_ok=True)
         else:
             s_path = ''
-        # generate png
+        # generate pngs
         for i , i_z in enumerate(li_z):
             s_title = f'{s_shape}_z_layer'
             fig, ax = plt.subplots(figsize=figsize)
@@ -183,7 +189,7 @@ def z_stack(df_coor, show=False, plot=None, png=None, movie=False, facecolor='wh
             fig.savefig(f'{s_path}{s_title}_{str(i).zfill(6)}.png', facecolor=facecolor)
             plt.close()
 
-    # mesh or agents to movie
+    # mesh or agent pngs to movie
     if movie and not (png is None):
         s_pathfile_movie = f'{s_path}{s_title}.mp4'
         os.system(f'ffmpeg -r {frame_rate} -f image2 -i {s_path}{s_title}_%06d.png -vcodec libx264 -pix_fmt yuv420p -strict -2 -tune animation -crf 15 -acodec none {s_pathfile_movie}')
@@ -216,8 +222,11 @@ class Shape:
         description:
             function returns volume in square or cubic micrometer.
         """
+        if (len(set(self.mesh.loc[:,['z']])) == 1):
+            i_volume_pixel = self.um_p_px * self.um_p_px
+        else:
+            i_volume_pixel = self.um_p_px * self.um_p_px * self.um_p_px
         i_pixel = self.mesh.shape[0]
-        i_volume_pixel = self.um_p_px * self.um_p_px * self.um_p_px
         i_volumne = i_pixel * i_volume_pixel
         return(i_volumne)
 
@@ -666,8 +675,52 @@ class Shape:
             os.makedirs(s_path, exist_ok=True)
         self.df_agent().replace(replace).loc[:,['x','y','z','type']].to_csv(pathfile, header=False, index=False)
 
-    def z_stack_mesh(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
+    def z_stack_mesh(self, show=False, png=None, movie=False, color='orange', s=1, figsize=(4, 4), facecolor='white', frame_rate=24):
         """
+        input:
+            show: boolean
+                to specify if the mesh z slice through the origin
+                should been displayed?
+                default is False.
+
+            png: string
+                filename.png that should used as filename template for the plots.
+                if None, no png files will be generated.
+                default is None.
+
+            movie: boolean
+                to specify if from the pngs an mp4 movie should be generated.
+                default is False.
+
+            color: string
+                web color label to defined the color of the mesh.
+                default is .
+                + https://en.wikipedia.org/wiki/Web_colors
+
+            s: real
+                to set the datapoint marker size.
+                default is 1.
+
+            figsize: tuple of real
+                to set the figure width and hight values in inch.
+                default is (4,4).
+
+            facecolor: string
+                to set the figure background color.
+                default is white.
+
+            frame_rate: integer
+                to set the movies frame per secound rate.
+                default is 24 frames per secound.
+
+        output:
+            by defalt this function outputs nothing. if set,
+            + show will display the z stack slice though the origin.
+            + png will save the stack as png files.
+            + movie will generate a move from the png files.
+
+        description:
+            function to visualize the mesh dataframe.
         """
         df_mesh = self.df_mesh().rename({'m':'x', 'n':'y', 'p':'z'}, axis=1)
         df_mesh['type'] = 'mesh'
@@ -675,7 +728,6 @@ class Shape:
         z_stack(
             df_coor = df_mesh,
             show = show,
-            plot = plot,
             png = png,
             movie  = movie,
             facecolor = facecolor,
@@ -684,8 +736,52 @@ class Shape:
             frame_rate = frame_rate,
         )
 
-    def z_stack_agent(self, show=False, plot=None, png=None, movie=False, facecolor='white', cmap='inferno', s=1, figsize=(4, 4), frame_rate=24):
+    def z_stack_agent(self, show=False, png=None, movie=False, cmap='turbo', s=1, figsize=(4, 4), facecolor='white', frame_rate=24):
         """
+        input:
+            show: boolean
+                to specify if the agent z slice through the origin
+                should been displayed?
+                default is False.
+
+            png: string
+                filename.png that should used as filename template for the plots.
+                if None, no png files will be generated.
+                default is None.
+
+            movie: boolean
+                to specify if from the pngs an mp4 movie should be generated.
+                default is False.
+
+            cmap: string
+                matplotlib colormap label to color the agent types
+                default is turbo.
+                + https://matplotlib.org/stable/tutorials/colors/colormaps.html
+
+            s: real
+                to set the datapoint marker size.
+                default is 1.
+
+            figsize: tuple of real
+                to set the figure width and hight values in inch.
+                default is (4,4).
+
+            facecolor: string
+                to set the figure background color.
+                default is white.
+
+            frame_rate: integer
+                to set the movies frame per secound rate.
+                default is 24 frames per secound.
+
+        output:
+            by defalt this function outputs nothing. if set,
+            + show will display the z stack slice though the origin.
+            + png will save the stack as png files.
+            + movie will generate a move from the png files.
+
+        description:
+            function to visualize the agent dataframe.
         """
         # plot agents
         df_agent = self.df_agent().copy()
@@ -697,7 +793,6 @@ class Shape:
         z_stack(
             df_coor = df_agent,
             show = show,
-            plot = plot,
             png = png,
             movie  = movie,
             facecolor = facecolor,
