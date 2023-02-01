@@ -1,5 +1,5 @@
 #########
-# title: shape.py
+# title: seed.py
 #
 # language: python3
 # date: 2022-09-18
@@ -20,7 +20,7 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 import pandas as pd
-from pcSeed import pdplt  # from pwn biotransistor prj
+from phycell import pdplt  # from pwn biotransistor prj
 import random
 import sys
 
