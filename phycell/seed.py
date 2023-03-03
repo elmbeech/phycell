@@ -67,7 +67,7 @@ def axis(r_min, r_max, r_step, r_origin=0):
     return(er_axis)
 
 
-def z_stack(df_coor, show=False, png=None, movie=False, s=1, figsize=(4, 4), facecolor='white', frame_rate=24):
+def z_stack(df_coor, show=False, png=None, movie=False, s=1, xylim=None, figsize=(4, 4), facecolor='white', frame_rate=24):
     """
     input:
         df_coor: dataframe
@@ -91,7 +91,12 @@ def z_stack(df_coor, show=False, png=None, movie=False, s=1, figsize=(4, 4), fac
             to set the datapoint marker size.
             default is 1.
 
-        figsize: tuple of real
+        xylim: tuple of integers.
+            x axis and y axis limit values.
+            if None, df_coor min and max values will be used.
+            default is None.
+
+        figsize: tuple of real.
             to set the figure width and hight values in inch.
             default is (4,4).
 
@@ -113,8 +118,10 @@ def z_stack(df_coor, show=False, png=None, movie=False, s=1, figsize=(4, 4), fac
         function to visualize the mesh and agent dataframe.
     """
     # handle input
-    i_min_axis = min({df_coor['x'].min() - 1, df_coor['y'].min() - 1})
-    i_max_axis = max({df_coor['x'].max() + 1, df_coor['y'].max() + 1})
+    if xylim is None:
+        i_min_axis = min({df_coor['x'].min() - 1, df_coor['y'].min() - 1})
+        i_max_axis = max({df_coor['x'].max() + 1, df_coor['y'].max() + 1})
+        xylim = (i_min_axis, i_max_axis)
     li_z = sorted(df_coor['z'].unique(), reverse=True)
 
     # show mesh or agent z stack slice through origin
@@ -129,8 +136,8 @@ def z_stack(df_coor, show=False, png=None, movie=False, s=1, figsize=(4, 4), fac
             y = 'y',
             s = s,
             color = df_z.loc[:, 'type_color'],
-            xlim = (i_min_axis, i_max_axis),
-            ylim = (i_min_axis, i_max_axis),
+            xlim = xylim,
+            ylim = xylim,
             grid = True,
             title = f'{s_title}: {i_z}',
             ax = ax,
@@ -170,8 +177,8 @@ def z_stack(df_coor, show=False, png=None, movie=False, s=1, figsize=(4, 4), fac
                 y = 'y',
                 s = s,
                 color = df_z.loc[:, 'type_color'],
-                xlim = (i_min_axis, i_max_axis),
-                ylim = (i_min_axis, i_max_axis),
+                xlim = xylim,
+                ylim = xylim,
                 grid = True,
                 title = f'{s_title}: {i_z}',
                 ax = ax,
@@ -431,7 +438,7 @@ class Shape:
         # stor result
         self.agent = df_agent
 
-    def seeding_packed(self, agent_type_fraction, agent_diameter_um, lattice='HCP'):
+    def seeding_packed(self, agent_type_fraction, agent_diameter_um, agent_type_void=None, lattice='HCP'):
         """
         input:
             agent_type_fraction: dictionary
@@ -442,6 +449,10 @@ class Shape:
 
             agent_diameter_um: real
                 cell diameter in micro meter.
+
+            agent_type_void: string
+                agent_type_fraction key that should be treadted as spacer.
+                if None, there will be no random gaps in the hexagonal packing.
 
             lattice: string
                 fcc: face centered cubical.
@@ -617,6 +628,8 @@ class Shape:
             ls_type.append(s_type)
             lr_fract.append(r_fract)
         df_seed['type'] = np.random.choice(ls_type, size=i_total, replace=True, p=lr_fract)
+        if not (agent_type_void is None):
+            df_seed = df_seed.loc[df_seed.type != agent_type_void,:]
         print(f'processed type: {df_seed.shape}')
 
         # add to results
@@ -675,7 +688,7 @@ class Shape:
             os.makedirs(s_path, exist_ok=True)
         self.df_agent().replace(replace).loc[:,['x','y','z','type']].to_csv(pathfile, header=False, index=False)
 
-    def z_stack_mesh(self, show=False, png=None, movie=False, color='orange', s=1, figsize=(4, 4), facecolor='white', frame_rate=24):
+    def z_stack_mesh(self, show=False, png=None, movie=False, color='orange', s=1, xylim=None, figsize=(4, 4), facecolor='white', frame_rate=24):
         """
         input:
             show: boolean
@@ -700,6 +713,11 @@ class Shape:
             s: real
                 to set the datapoint marker size.
                 default is 1.
+
+            xylim: tuple of integers.
+                x axis and y axis limit values.
+                if None, df_coor min and max values will be used.
+                default is None.
 
             figsize: tuple of real
                 to set the figure width and hight values in inch.
@@ -732,11 +750,12 @@ class Shape:
             movie  = movie,
             facecolor = facecolor,
             s = s,
+            xylim = xylim,
             figsize = figsize,
             frame_rate = frame_rate,
         )
 
-    def z_stack_agent(self, show=False, png=None, movie=False, cmap='turbo', s=1, figsize=(4, 4), facecolor='white', frame_rate=24):
+    def z_stack_agent(self, show=False, png=None, movie=False, cmap='turbo', s=1, xylim=None, figsize=(4, 4), facecolor='white', frame_rate=24):
         """
         input:
             show: boolean
@@ -761,6 +780,11 @@ class Shape:
             s: real
                 to set the datapoint marker size.
                 default is 1.
+
+            xylim: tuple of integers.
+                x axis and y axis limit values.
+                if None, df_coor min and max values will be used.
+                default is None.
 
             figsize: tuple of real
                 to set the figure width and hight values in inch.
@@ -797,6 +821,7 @@ class Shape:
             movie  = movie,
             facecolor = facecolor,
             s = s,
+            xylim = xylim,
             figsize = figsize,
             frame_rate = frame_rate,
         )
