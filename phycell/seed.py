@@ -686,7 +686,7 @@ class Shape:
         s_path = '/'.join(pathfile.split('/')[:-1])
         if (len(s_path) > 0) and (s_path != '.'):
             os.makedirs(s_path, exist_ok=True)
-        self.df_agent().replace(replace).loc[:,['x','y','z','type']].to_csv(pathfile, header=False, index=False)
+        self.df_agent().replace(replace).loc[:,['x','y','z','type']].to_csv(pathfile, header=True, index=False)
 
     def z_stack_mesh(self, show=False, png=None, movie=False, color='orange', s=1, xylim=None, figsize=(4, 4), facecolor='white', frame_rate=24):
         """
