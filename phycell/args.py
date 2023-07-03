@@ -1,16 +1,15 @@
 #########
-# title: pyMCDS.py
+# title: args.py
 #
 # language: python3
-# date: 2022-08-22
+# date: 2023-07-01
 # license: BSD-3-Clause
-# authors: Patrick Wall, Randy Heiland, Paul Macklin, Elmar Bucher
+# authors: Elmar Bucher
 #
 # description:
-#     pyMCDS.py definds an object class, able to load and access
-#     within python a single time step from the PhysiCell model output folder.
-#     pyMCDS.py was forked from the original PhysiCell-Tools python-loader
-#     implementation and further developed.
+#     args.py definds the Parameter object class, able to load and
+#     access within python, from the PhysiCell model output folder,
+#     the parameters set in PhysiCell_setting.xml and the rules.csv file.
 #########
 
 
@@ -77,18 +76,18 @@ class Parameter:
             relative or absolute path to the directory where
             the PhysiCell output files are stored.
     output:
-        mcds: pyMCDS class instance
+        mcds: Parameter class instance
             all fetched content is stored at mcds.data.
 
     description:
-        pyMCDS.__init__ will generate a class instance with a
+        Parameter.__init__ will generate a class instance with a
         dictionary of dictionaries data structure that contains all
-        output from a single PhysiCell model time step. furthermore,
+        parameter relatd output PhysiCell model run. furthermore,
         this class, and as such it's instances, offers functions
         to access the stored data.
         the code assumes that all related output files are stored in
-        the same directory. data is loaded by reading the xml file
-        for a particular time step and the therein referenced files.
+        the same directory. data is loaded by reading the
+        PhysiCell_seetings.xml file and the therein referenced files.
     """
     def __init__(self, s_path='.'):
         self.data = self._read_setting_xml(s_path)
@@ -99,7 +98,7 @@ class Parameter:
     def get_parameter_dict(self):
         """
         input:
-            self: pyMCDS class instance.
+            self: Parameter class instance.
 
         output:
             d_parameter: dictionary
@@ -108,20 +107,14 @@ class Parameter:
         description:
             function retunes a dictionary that maps
             the models input parameter and values.
-
-        attention:
-        this is an unofficial function and can with any version be dropped.
-        this will for sure happen, when cell_type and substrate id label
-        mapping dictionaries are provided in the regular output xml,
-        to keep the code lean and agile!
         """
         d_parameter = self.data['setting']['parameters'].copy()
-        return(d_parameter)
+        return d_parameter
 
     def get_unit_se(self):
         """
         input:
-            self: pyMCDS class instance.
+            self: Parameter class instance.
 
         output:
             se_unit: pandas series
@@ -131,23 +124,17 @@ class Parameter:
         description:
             function returns a series that lists all tracked
             parameter variables that have units and their units.
-
-        attention:
-        this is an unofficial function and can with any version be dropped.
-        this will for sure happen, when cell_type and substrate id label
-        mapping dictionaries are provided in the regular output xml,
-        to keep the code lean and agile!
         """
         se_unit = pd.Series(self.data['setting']['units'])
         se_unit.index.name = 'parameter'
         se_unit.name = 'unit'
         se_unit.sort_index(inplace=True)
-        return(se_unit)
+        return se_unit
 
     def get_rule_df(self):
         """
         input:
-            self: pyMCDS class instance.
+            self: Parameter class instance.
 
         output:
             df_rules: pandas dataframe
@@ -155,15 +142,9 @@ class Parameter:
 
         description:
             function returns the rule csv as a datafram.
-
-        attention:
-        this is an unofficial function and can with any version be dropped.
-        this will for sure happen, when cell_type and substrate id label
-        mapping dictionaries are provided in the regular output xml,
-        to keep the code lean and agile!
         """
         df_rule = self.data['setting']['rules']
-        return(df_rule)
+        return df_rule
 
 
     ## LOAD DATA ##
