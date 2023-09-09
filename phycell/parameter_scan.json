@@ -1,0 +1,10 @@
+{
+    "parameter_manipulation_tag00": [
+        ["xml", ".//ELEMENT/PARAMETER", 0.0],
+        ["csv", "RULE", "COLUMN", 0.0]
+    ],
+    "parameter_manipulation_tag01": [
+        ["xml", ".//ELEMENT/PARAMETER", 0.0],
+        ["csv", "RULE", "COLUMN", 0.0]
+    ]
+}
