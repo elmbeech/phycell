@@ -32,39 +32,67 @@ import random
 
 
 # plot stuff
-def df_label_to_color(df_abc, s_label, s_cmap='viridis', b_shuffle=False):
+def df_category_to_color(df_abc, s_column, es_category=None, s_nocategory='gray', s_cmap='viridis', b_shuffle=False):
     '''
     input:
-        df_abc: dataframe to wich the color column will be added.
-        s_label: column name with sample labels for which a color column will be generated.
+        df_abc: dataframe to which the color column will be added.
+        s_column: column name with category labels
+            for which a color column will be generated.
+        es_category: set of category labels to color.
+            if None, es_category will be extracted for the s_focus column.
+        s_nocategory: color for category labels not defined in es_category.
         s_cmap:  matplotlib color map label.
             https://matplotlib.org/stable/tutorials/colors/colormaps.html
         b_shuffle: should colors be given by alphabetical order,
-            or should the label color mapping order be random.
+            or should the category label color mapping order be random.
 
     output:
         df_abc: dataframe updated with color column.
+        ds_color: category lable to hex color string mapping dictionary.
 
     description:
-        function adds for the selected label column
+        function adds for the selected category label column
         a color column to the df_abc dataframe.
     '''
-    ls_label = sorted(df_abc.loc[:,s_label].unique())
+    if (es_category is None):
+        es_category = set(df_abc.loc[:,s_focus])
     if b_shuffle:
-       random.shuffle(ls_label)
-    a_color = plt.get_cmap(s_cmap)(np.linspace(0, 1, len(ls_label)))
-    d_color = dict(zip(ls_label, a_color))
-    df_abc[f'{s_label}_color'] = [colors.to_hex(d_color[s_scene]) for s_scene in df_abc.loc[:,s_label]]
+       ls_category = list(es_category)
+       random.shuffle(ls_category)
+    else:
+       ls_category = sorted(es_category)
+    a_color = plt.get_cmap(s_cmap)(np.linspace(0, 1, len(ls_category)))
+    do_color = dict(zip(ls_category, a_color))
+    df_abc[f'{s_focus}_color'] = s_nocategory
+    ds_color = {}
+    for s_category, o_color in do_color.items():
+        s_color = colors.to_hex(o_color)
+        ds_color.update({s_category : s_color})
+        df_abc.loc[(df_abc.loc[:,s_focus] == s_category), f'{s_focus}_color'] = s_color
+    # output
+    return(ds_color)
 
-def ax_colorlegend(ax, df_abc, s_label, s_color, r_x_figure2legend_space=0.01, s_fontsize='small'):
+# r_x_figure2legend_space=0.01
+# r_x_figure2legend_space: space between plot and legend.
+# -1 is left plot border, 0 is right plot border.
+#ax.legend(
+#  loc = 'lower left',
+#  bbox_to_anchor = (1+r_x_figure2legend_space, 0, 0, 0),
+#  borderaxespad = 0.00,
+#)
+
+def ax_colorlegend(ax, df_abc, s_category, s_color, s_loc='lower left', s_fontsize='small'):
     '''
     input:
         ax: matplotlib axis object to which a color legend will be added.
         df_abc: dataframe
-        s_label: column name with sample labels.
+        s_category: column name with category labels.
         s_color: column name with hex colors or as webcolor labels.
-        r_x_figure2legend_space: space between plot and legend.
-            -1 is left plot border, 0 is right plot border.
+        s_loc: the location of the legend.
+            possible strings are: best,
+            upper right, upper center, upper left, center left,
+            lower left, lower center, lower right, center right,
+            center.
         s_fontsize: font size used for the legend. known are:
             xx-small, x-small, small, medium, large, x-large, xx-large.
 
@@ -74,16 +102,14 @@ def ax_colorlegend(ax, df_abc, s_label, s_color, r_x_figure2legend_space=0.01, s
     description:
         function to add color legend to a figure.
     '''
-    d_color = df_abc.loc[:,[s_label,s_color]].drop_duplicates().set_index(s_label).loc[:,s_color].to_dict()
+    d_color = df_abc.loc[:,[s_category,s_color]].drop_duplicates().set_index(s_category).loc[:,s_color].to_dict()
     lo_patch = []
-    for s_label, s_color in sorted(d_color.items()):
-        o_patch = mpatches.Patch(color=s_color, label=s_label)
+    for s_category, s_color in sorted(d_color.items()):
+        o_patch = mpatches.Patch(color=s_color, label=s_category)
         lo_patch.append(o_patch)
     ax.legend(
         handles = lo_patch,
-        bbox_to_anchor = (1+r_x_figure2legend_space, 0, 0, 0),
-        loc = 'lower left',
-        borderaxespad = 0.00,
+        loc = s_loc,
         fontsize = s_fontsize
     )
 
